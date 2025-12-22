@@ -38,7 +38,7 @@ The goal is to replace the current mix of Bash and Python scripts with a unified
 
 ### 7. Enhancement: Add Deno to Docker Image
 *   **Goal:** Make yt-dlp more robust by providing a JavaScript runtime.
-*   **Result:** [COMPLETE]
+*   **Result:** [DEFERRED] See "Known Issues & Future Fixes".
 
 ### 8. Enhancement: Playlist Support
 *   **Goal:** Enable the `process` command to handle playlist URLs, processing each video sequentially.
@@ -51,6 +51,15 @@ The goal is to replace the current mix of Bash and Python scripts with a unified
     3.  Create a new E2E test using a small, stable playlist URL to verify the functionality.
 *   **Result:**
     *   (Pending)
+
+---
+
+## Known Issues & Future Fixes
+
+### yt-dlp JavaScript Runtime Warning
+*   **Issue:** `yt-dlp` still shows warnings about a missing JavaScript runtime, even after `deno` was added to the Docker image.
+*   **Hypothesis:** `yt-dlp` may require an explicit command-line argument (e.g., `--js-runtime deno`) or a configuration file to use the installed runtime. The current implementation does not provide this.
+*   **Status:** This is a low-priority issue as downloads are still succeeding. It can be addressed in a future enhancement phase.
 
 ---
 
