@@ -14,115 +14,62 @@ The goal is to replace the current mix of Bash and Python scripts with a unified
 
 ### 1. Project Initialization & Infrastructure
 *   **Goal:** Set up a professional Python project structure.
-*   **Architecture:**
-    *   Use pyproject.toml with hatchling build backend.
-    *   Use uv for virtual environment and dependency locking.
-    *   Implement pydantic-settings for typed configuration (loading .env).
-*   **Dependencies:**
-    *   **Prod:** faster-whisper, yt-dlp, rich, pydantic-settings, litellm, typer, loguru.
-    *   **Dev:** pytest, ruff, mypy.
-*   **Plan:**
-    1.  Create pyproject.toml with all dependencies.
-    2.  Create src/video2mdnotes/ package structure.
-    3.  Create config.py using Pydantic BaseSettings.
-    4.  Create tests/test_config.py to verify loading.
-*   **Result:**
-    *   [COMPLETE] pyproject.toml created.
-    *   [COMPLETE] Dependencies installed via uv sync.
-    *   [COMPLETE] config.py implemented.
-    *   [COMPLETE] Tests passed (3/3).
+*   **Result:** [COMPLETE]
 
 ### 2. Module: Downloader (yt-dlp wrapper)
 *   **Goal:** Replace manual yt-dlp commands and clean_dir_filenames.sh.
-*   **Architecture:**
-    *   Input: URL string.
-    *   Output: Path to downloaded .wav file and metadata (Title, URL, Date).
-    *   Logic:
-        *   Download audio as WAV.
-        *   Sanitize filename (using the logic from clean_dir_filenames.sh).
-        *   Save metadata to a JSON or object for passing to the next stage.
-*   **Limitations (Phase 1):**
-    *   Only supports direct yt-dlp URLs (no complex JS streaming).
-*   **Plan:**
-    1.  Create src/video2mdnotes/core/downloader.py.
-    2.  Implement DownloadResult Pydantic model.
-    3.  Implement sanitize_filename (regex: replace space/dash with underscore, lower, strip special).
-    4.  Implement download_audio using yt_dlp.YoutubeDL.
-    5.  Create tests/test_downloader.py with unit and integration tests.
-*   **Result:**
-    *   [COMPLETE] downloader.py implemented.
-    *   [COMPLETE] Tests passed (7/7).
+*   **Result:** [COMPLETE]
 
 ### 3. Module: Transcriber (faster-whisper wrapper)
 *   **Goal:** Port transcribe_dir.py into the modular architecture.
-*   **Architecture:**
-    *   Input: Path to .wav file.
-    *   Output: Path to raw transcript (Markdown/Text) and segments data.
-    *   Logic:
-        *   Load model (cached).
-        *   Transcribe with progress bar (Rich).
-        *   Return structured transcript object.
-*   **Plan:**
-    1.  Refactor transcribe_dir.py into src/video2mdnotes/core/transcriber.py.
-    2.  Implement TranscriptResult Pydantic model.
-    3.  Implement transcribe_audio function using faster_whisper.
-    4.  Create tests/test_transcriber.py with mocked unit tests and integration tests.
-*   **Result:**
-    *   [COMPLETE] transcriber.py implemented.
-    *   [COMPLETE] Tests passed (9/9).
+*   **Result:** [COMPLETE]
 
 ### 4. Module: Summarizer (litellm integration)
 *   **Goal:** Replace batch_run.sh with a robust Python module.
-*   **Architecture:**
-    *   Input: Transcript text/file.
-    *   Output: Summary Markdown file.
-    *   Logic:
-        *   Use litellm for multi-provider LLM calls.
-        *   Construct prompt using summarize_prompt.txt.
-        *   Call LLM and save result.
-*   **Plan:**
-    1.  Implement src/video2mdnotes/core/summarizer.py using litellm.
-    2.  Implement SummaryResult Pydantic model.
-    3.  Implement generate_summary function.
-    4.  Create tests/test_summarizer.py with mocked unit tests and integration tests.
-*   **Result:**
-    *   [COMPLETE] summarizer.py implemented.
-    *   [COMPLETE] Tests passed (12/12).
-    *   [NOTE] The warning (PydanticSerializationUnexpectedValue) is coming from litellm's internal Pydantic models when serializing the response. It's a known warning in some versions of litellm interacting with Pydantic v2, but it doesn't affect the functionality or the correctness of our code. We can safely ignore it for now.
+*   **Result:** [COMPLETE]
 
 ### 5. Module: Orchestrator & CLI
 *   **Goal:** Tie it all together into a single command and define the output logic.
-*   **Architecture:**
-    *   Command: video2mdnotes process <URL>
-    *   Output Modes: Local (default) vs Cloud.
-    *   Logic: Downloader -> Transcriber -> Summarizer -> Archive/Return.
-*   **Plan:**
-    1.  Implement src/video2mdnotes/main.py with typer.
-    2.  Implement the "Project-Based Archiving" logic (create folder, move files).
-    3.  Create tests/e2e/test_full_pipeline.py for the end-to-end test.
-*   **Result:**
-    *   [COMPLETE] main.py implemented with loguru logging.
-    *   [COMPLETE] E2E test passed (13/13).
+*   **Result:** [COMPLETE]
 
 ### 6. Dockerization (Local)
 *   **Goal:** Run the CLI inside a container.
+*   **Result:** [COMPLETE]
+
+### 7. Enhancement: Add Deno to Docker Image
+*   **Goal:** Make yt-dlp more robust by providing a JavaScript runtime.
+*   **Result:** [COMPLETE]
+
+### 8. Enhancement: Playlist Support
+*   **Goal:** Enable the `process` command to handle playlist URLs, processing each video sequentially.
 *   **Architecture:**
-    *   Dockerfile using multi-stage build (uv for install).
-    *   Volumes for: Output data, Model cache, Config.
+    *   `downloader.py`: The `download_audio` function must be updated to detect a playlist URL and return a `List[DownloadResult]` instead of a single object.
+    *   `main.py`: The main `process` function must be updated to loop through the list of `DownloadResult` objects, running the transcribe, summarize, and archive steps for each one.
 *   **Plan:**
-    1.  Write Dockerfile.
-    2.  Write docker-compose.yml.
+    1.  Refactor `downloader.py` to detect playlist metadata and loop through entries, returning a list of results.
+    2.  Update the main loop in `main.py` to iterate over the list of downloads.
+    3.  Create a new E2E test using a small, stable playlist URL to verify the functionality.
 *   **Result:**
     *   (Pending)
 
 ---
 
-## Side Quests & Errors
+## Side Quests, Errors & Learnings
 
 ### Typer Single-Command Behavior
-*   **Issue:** When a `typer` application has only one command (e.g., just `process`), Typer treats that command as the "main" entry point.
+*   **Issue:** When a `typer` application has only one command, Typer treats it as the "main" entry point.
 *   **Symptom:** Invoking `runner.invoke(app, ["process", url])` fails with exit code 2 (Usage Error) because Typer expects `runner.invoke(app, [url])`.
-*   **Resolution:** Adjusted the test invocation to match Typer's single-command behavior. If we add more commands later, the invocation style in tests will need to revert to including the command name.
+*   **Resolution:** Adjusted the test invocation to match Typer's single-command behavior.
+
+### Docker Compose V2 Command
+*   **Issue:** The `docker-compose` (hyphenated) command is deprecated.
+*   **Symptom:** `zsh: command not found: docker-compose`.
+*   **Resolution:** Use the modern `docker compose` (space) command.
+
+### pyproject.toml Dev Dependencies
+*   **Issue:** The `[tool.uv.dev-dependencies]` table is deprecated.
+*   **Symptom:** A warning is issued during `uv sync`.
+*   **Resolution:** Moved dev dependencies to the standard `[project.optional-dependencies]` table.
 
 ---
 

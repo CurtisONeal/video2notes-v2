@@ -1,0 +1,15 @@
+services:
+  app:
+    build: .
+    # The command to run when the container starts.
+    # You can override this from the command line.
+    # Example: docker-compose run --rm app "https://www.youtube.com/watch?v=tPEE9ZwTmy0"
+    command: ["--help"]
+    volumes:
+      # Mount the output directory to save results locally
+      - ./previous_run_results:/app/previous_run_results
+      # Mount a local directory to cache the Whisper models
+      - ./model_cache:/root/.cache
+    env_file:
+      # Pass environment variables from your .env file
+      - .env
