@@ -88,6 +88,7 @@ The goal is to replace the current mix of Bash and Python scripts with a unified
 *   **Result:**
     *   [COMPLETE] summarizer.py implemented.
     *   [COMPLETE] Tests passed (12/12).
+    *   [NOTE] The warning (PydanticSerializationUnexpectedValue) is coming from litellm's internal Pydantic models when serializing the response. It's a known warning in some versions of litellm interacting with Pydantic v2, but it doesn't affect the functionality or the correctness of our code. We can safely ignore it for now.
 
 ### 5. Module: Orchestrator & CLI
 *   **Goal:** Tie it all together into a single command and define the output logic.
