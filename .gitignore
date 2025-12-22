@@ -19,10 +19,10 @@ __pycache__/
 .DS_Store
 
 # Processed/archived wav files moved by batch_run.sh; ignore their contents
-/transcribed_wav/*
+/legacy_scripts/transcribed_wav/*
 
 # Explicitly ignore the archive subfolder as well (keeps intent clear)
-/transcribed_wav/archive/
+/legacy_scripts/transcribed_wav/archive/
 /vertex_intro_class
 
 # Distribution / packaging
@@ -144,3 +144,4 @@ downloads/
 downloads/*
 audio_archive/
 audio_archive/*
+model_cache/

@@ -1,0 +1,955 @@
+---
+title: "20251217_ai_engineering_in_76_minutes_complete_course_speedrun_jv3pl1_mn2m"
+source: 20251217_ai_engineering_in_76_minutes_complete_course_speedrun_jv3pl1_mn2m.wav
+model: tiny
+language: en
+generated_at: 2025-12-17T22:44:15
+---
+
+# Summary
+
+_(Write your 5-bullet summary here.)_
+
+# Notes
+
+- [0:00:00.000] Hey everyone, today we're diving into the book AI Engineering by Chipwin.
+- [0:00:03.600] 800 pages of really great content about this in-demand field that's offering salaries of $300,000 or more.
+- [0:00:09.759] In this video, I'm summarizing everything from the book to help you get a high level overview of the field.
+- [0:00:14.320] We'll talk about foundation models, prompt engineering, rag, fine tuning, agents, how to build a system, improving inference and more.
+- [0:00:21.359] I also want to mention, this is a super high level overview of a very detailed technical book.
+- [0:00:26.239] Don't expect to learn all the details just from watching this video.
+- [0:00:28.960] I really recommend using this as a way to get an overview of what the field looks like and use it as a jumping off point for your own research and exploration.
+- [0:00:36.000] So what exactly is AI Engineering? And how is it different from traditional machine learning? Let's break it down.
+- [0:00:41.280] AI Engineering has exploded recently for two simple reasons. AI models have gotten dramatically better at solving real problems,
+- [0:00:48.079] while the barrier to building with them has gotten much lower. This perfect storm has created one of the fastest growing engineering disciplines today.
+- [0:00:54.960] At its core, AI Engineering is about building applications on top of foundation models,
+- [0:00:59.520] those massive AI systems trained by companies like OpenAI or Google. Unlike traditional machine learning engineers who build models from scratch,
+- [0:01:06.640] AI engineers leverage existing ones, focusing less on training and more on adaptation. These foundation models work through a process called self-supervision.
+- [0:01:14.879] Instead of requiring humans to painstakingly label data, these models can learn by predicting parts of their input data.
+- [0:01:20.719] This breakthrough solved the data labeling bottleneck that held back AI for years. As these models scaled up with more data and computing power,
+- [0:01:27.359] they evolved from simple language models to what we now call large language models or LLMs. And they didn't stop there.
+- [0:01:32.959] They've expanded to handle multiple types of data including images and video, often becoming large multi-modal models.
+- [0:01:38.640] Nowadays, we're seeing foundation models power everything from coding assistance like GitHub,
+- [0:01:42.400] co-pilot, image generation tools, writing aids, customer support bots,
+- [0:01:46.799] and sophisticated data analysis systems. Now that we've covered what AI Engineering is,
+- [0:01:51.120] let's take deeper into foundation models themselves. How they're trained, how they work, and why
+- [0:01:55.439] understanding their architecture matters for AI engineers. Foundation models at their core can only
+- [0:01:59.920] know what they've been trained on. This might seem obvious, but it has profound implications.
+- [0:02:04.319] If a model hasn't seen examples of a specific language or concept during training,
+- [0:02:08.000] it simply won't have that knowledge. Most large foundation models are trained on webcrawled data.
+- [0:02:12.400] Which brings some inherent problems. This data often contains clickbait, misinformation,
+- [0:02:16.719] toxic content, and fake news. To combat this, teams use various filtering techniques. For instance,
+- [0:02:22.240] OpenAI only used reddit links with at least three upvotes when training GPT2. The language distribution
+- [0:02:27.919] and training data is also heavily skewed. About half of all crawled data is an English, which means
+- [0:02:32.639] languages with millions of speakers are often underrepresented. This is why specialized models
+- [0:02:36.879] for specific languages and domains are becoming increasingly important. Also, the distribution of
+- [0:02:41.280] domains in one of the main training data sets leads heavily towards business, tech, news, and art.
+- [0:02:46.159] In terms of model architecture, most foundation models use transformer architectures based on the
+- [0:02:50.400] attention mechanism. But to understand why transformers were such a breakthrough, we need to look at what
+- [0:02:54.639] came before. Transformers were invented to solve the problems of sequence-to-sequence models,
+- [0:02:59.120] which used recurrent neural networks for tasks like translation. These had two main components,
+- [0:03:04.000] and in coder that processes inputs and a decoder that generates outputs. Both worked sequentially,
+- [0:03:09.520] token by token. The problem is that the decoder only has access to a compressed representation
+- [0:03:14.639] of the entire input. Imagine trying to answer detailed questions about a book when all you have is a brief
+- [0:03:19.840] summary. Also, input processing and output generation are done sequentially, so it's slow for long
+- [0:03:24.879] sequences. Transformers solved this with the attention mechanism, which allows the model to weigh the
+- [0:03:29.840] importance of different input tokens when generating each output token. It's like being able to reference
+- [0:03:34.879] any page in the book while answering questions. Plus, transformers can process input tokens in
+- [0:03:39.439] parallel, making them much faster. During inference, transformers work in two steps. First, prefill.
+- [0:03:44.879] Process all the input tokens in parallel to create the intermediate state, and second, decode,
+- [0:03:50.479] generate one output token at a time. The attention mechanism uses three types of vectors. First,
+- [0:03:55.599] query vectors. These represent what information the model is looking for. Next, key vectors, like
+- [0:04:01.919] indices of previous tokens, and finally value vectors. The actual content of the previous tokens.
+- [0:04:07.599] The model computes how much attention to give each input token by comparing the queue and k vectors.
+- [0:04:13.199] A high similarity score means that the tokens will heavily influence the output. This is why
+- [0:04:19.199] longer context windows are computationally expensive. More tokens mean more k and v vectors to compute
+- [0:04:24.800] and store. Attention is almost always multi-headed, allowing the model to focus on different
+- [0:04:29.360] groups of tokens simultaneously. In Lama, 27B, there are 32 attention heads, for example. A complete
+- [0:04:34.959] transformer consists of multiple transformer blocks. Each containing an attention module and an neural
+- [0:04:39.680] network module. The number of blocks is often called the number of layers. Before and after each block,
+- [0:04:44.720] there's an embedding module that converts tokens and their positions into vectors and finally an
+- [0:04:49.360] unembedding layer that maps output vectors to token probabilities. So that's a super high look at this.
+- [0:04:54.800] I would really recommend either reading the book or check out stat quest for an awesome
+- [0:04:58.560] overview of transformers in the attention mechanism, all linked that in the description. That's
+- [0:05:02.079] really how I learned. While transformers dominate, they're not the only architecture. Models like
+- [0:05:06.079] RWKV, which combines R&N based approaches with parallelization capabilities, are gaining traction for
+- [0:05:11.199] certain applications. In general, larger models with more parameters have greater capacity to learn and
+- [0:05:15.839] perform better. The number of parameters helps us estimate the compute resources needed for training in
+- [0:05:19.920] inference as well. However, note that parameter count can be misleading with sparse models,
+- [0:05:24.000] so those with many zeros. Which can be more efficient. A large sparse model might require
+- [0:05:28.879] less compute than a smaller dense one. When designing models compute is often the limiting factor.
+- [0:05:33.759] The chinchilla scaling law helps calculate the optimal model size and data size for a given compute budget.
+- [0:05:39.199] It suggests that the number of training tokens should be about 20 times the model size,
+- [0:05:43.439] so a 3 billion parameter model needs about 60 billion training tokens. While the cost for achieving
+- [0:05:48.000] the same model performance is decreasing over time, the cost for improvements remains high.
+- [0:05:52.639] Going from a 3% to a 2% error rate might require an order of magnitude more data, compute, or
+- [0:05:58.000] energy, but even small performance improvements can make a huge difference for downstream applications.
+- [0:06:02.879] As we keep scaling models, we're approaching two significant bottlenecks.
+- [0:06:06.720] First, training data. There's concern will run out of high-quality internet data in the next few years,
+- [0:06:12.160] forcing models to train on AI-generated content, potentially causing performance degradation,
+- [0:06:17.040] or requiring access to proprietary data like copyrighted books and medical records.
+- [0:06:21.120] Second, electricity. Data centers already consume one to 2% of global electricity,
+- [0:06:25.759] limiting how much larger they can grow without significant energy breakthroughs.
+- [0:06:29.360] Pre-trained foundation models face two main issues. They're optimized for text completion,
+- [0:06:34.079] not conversation, and their outputs can be factually incorrect or ethically problematic. Post-training aims
+- [0:06:39.519] to address these issues through two main steps. First, supervised fine tuning.
+- [0:06:43.759] Supervised fine tuning optimizes the model for conversations instead of completion. This requires
+- [0:06:49.040] high-quality instruction data showing the kinds of requests the model should handle and how it should
+- [0:06:53.120] respond. It's essentially teaching the model what good responses look like. Second, preference fine tuning.
+- [0:06:58.879] Preference fine tuning aligns the model with human values using reinforcement learning.
+- [0:07:02.800] Often called reinforcement learning from human feedback. This involves training or award model
+- [0:07:07.040] that scores outputs based on human preferences and optimizing the foundation model to generate
+- [0:07:11.920] responses that maximize these scores. While reinforcement learning from human feedback has been
+- [0:07:16.319] the standard approach, newer methods like direct preference optimization,
+- [0:07:20.000] DPO, or gaining traction. Some companies even skip the reinforcement learning step entirely,
+- [0:07:25.360] instead generating multiple outputs and selecting those with high-reward model scores. This is a
+- [0:07:29.759] strategy called best event. Foundation models don't just produce a single definitive answer.
+- [0:07:34.480] They generate probabilities for possible outputs. How we sample from these probabilities dramatically
+- [0:07:39.680] affects the model's responses. The simplest approach is greedy sampling, always picking the highest
+- [0:07:44.560] probability token. But this leads to a pedative predictable text. To introduce creativity,
+- [0:07:49.439] we use sampling techniques. Temperature controls how confident the model is in its predictions.
+- [0:07:54.240] Higher temperature values like 0.7 to 1 make outputs more creative but potentially less accurate.
+- [0:08:00.399] While lower temperatures, close to 0, make outputs more deterministic and focused. Top K sampling
+- [0:08:05.519] restricts the model to choosing from only the K most likely next tokens. Typically between 50 and 500
+- [0:08:11.680] depending on how diverse you want the responses to be. Top P sampling selects the smallest set of
+- [0:08:16.560] tokens whose cumulative probability exceeds a threshold P. A value of 0.9 means the model will only
+- [0:08:22.639] consider tokens that together make up 90% of the probability mass. This probabilistic nature explains
+- [0:08:28.319] many of the behaviors we see in foundation models like inconsistency with minor input changes and hallucinations
+- [0:08:34.000] where models confidently state incorrect information. Now that we understand foundation models a little
+- [0:08:38.720] more, let's talk about one of the most crucial yet underappreciated aspects of AI engineering,
+- [0:08:43.360] evaluation. For some applications, figuring out evaluation can consume the majority of your
+- [0:08:48.000] development effort. It's how you mitigate risks, uncover opportunities, and gain visibility into
+- [0:08:52.720] where your system is failing. Evaluating AI systems is significantly harder than traditional
+- [0:08:57.039] M.M. models for several reasons. First, the problem sees models solve are often inherently complex.
+- [0:09:02.720] Evaluating a mathematical proof or the quality of a summary requires deep expertise. You might need
+- [0:09:07.679] to read an entire book just to judge if a summary captures the key points correctly.
+- [0:09:11.919] Second, tasks are typically open-ended with many possible correct responses. Unlike classification where
+- [0:09:17.440] there's one right answer, a question like, write me a poem about resilience has countless valid responses.
+- [0:09:23.600] Third, foundation models are black boxes. You can only evaluate them by observing their outputs,
+- [0:09:28.080] not by understanding their internal workings. Fourth, publicly available evaluation benchmarks
+- [0:09:32.879] quickly become saturated, which is when the model achieves perfect scores. What was a challenging
+- [0:09:38.639] test yesterday becomes an easy exercise today. And finally, for general purpose models, you need
+- [0:09:43.840] to evaluate not just known tasks, but discover new capabilities that might extend beyond human abilities.
+- [0:09:49.440] All of this is made worse by general under investment in evaluation compared to model development.
+- [0:09:53.519] So let's start with some fundamental metrics used to evaluate language models during training.
+- [0:09:57.600] Most auto-regressive language models are trained using cross-entropy or relative,
+- [0:10:01.600] perplexity. These metrics essentially measure how well the model predicts the next token in
+- [0:10:05.600] a sequence. Entropy measures how much information on average at token carries.
+- [0:10:09.919] The higher the entropy, the more information dense each token is, and the more unpredictable the language.
+- [0:10:14.799] If you can perfectly predict what I'll say next, what I say carries no new information.
+- [0:10:18.879] Language models learn the distribution of their training data. The better our model learns this distribution,
+- [0:10:23.919] the better it becomes at predicting what comes next, resulting in lower cross-entropy.
+- [0:10:28.080] A perfectly trained model would achieve cross-entropy equal to the entropy of the training data itself,
+- [0:10:32.879] and the KL divergence between the two will be zero. Proplexity is simply the exponential of cross-entropy.
+- [0:10:38.559] It measures the amount of uncertainty a model has when predicting the next token.
+- [0:10:42.960] Higher perplexity means that there are more possible options the model is considering.
+- [0:10:46.639] What counts as good perplexity depends entirely on the data. More structured data has lower expected
+- [0:10:52.240] perplexity because it's more predictable. The larger the vocabulary, the higher the perplexity
+- [0:10:56.879] because there are more possible options. And the longer the context length, the lower the perplexity tends to be.
+- [0:11:02.240] While perplexity is useful for guiding training, and serves as a proxy for a model's general capabilities,
+- [0:11:07.279] it becomes less reliable for models that have undergone significant post-training with SFT or RLHF.
+- [0:11:12.960] As models get better at completing tasks, they might actually get worse at predicting the next token in a statistical sense.
+- [0:11:18.720] Perplexity can also be used to detect if a text was in a model's training data,
+- [0:11:22.159] because it would be unusually good at predicting those tokens.
+- [0:11:24.960] And to identify non-sensical text, which would have abnormally high perplexity.
+- [0:11:28.799] For some tasks, we can perform exact evaluation, where there's no ambiguity about the correct answer,
+- [0:11:34.159] like multiple choice questions. This is in contrast to subjective evaluation, like grading an essay.
+- [0:11:39.200] The gold standard here is functional correctness, evaluating whether the system performs its intended functionality.
+- [0:11:45.039] For example, if I ask a model to book a restaurant reservation, didn't make the correct reservation,
+- [0:11:49.679] this is the ultimate metric for any application, though it's not always clear how to measure it.
+- [0:11:53.679] In coding tasks, functional correctness translates to execution accuracy.
+- [0:11:57.919] Does the code run and produce the expected output?
+- [0:12:00.639] For gaming bots, we can measure objective performance metrics like win rates.
+- [0:12:04.159] When reference data is available, we can evaluate outputs by comparing their similarity to this ground
+- [0:12:08.399] truth. This approach is bottleneck by how much and how fast reference data can be generated,
+- [0:12:12.799] either by humans or AI. There are three main ways to compare outputs to references.
+- [0:12:17.440] First, exact match. A binary measure that works for simple questions with definitive answers,
+- [0:12:22.480] who was the first woman to win the Nobel Prize? Second, lexical similarity. A continuous measure
+- [0:12:27.679] of how much the tokens overlap between the output and reference. This can use techniques like edit
+- [0:12:32.639] distance, how many changes are needed to transform one text into another, or end-gram overlap metrics
+- [0:12:38.080] like blue and rouge. The drawback is that you need a comprehensive set of reference responses,
+- [0:12:43.279] and the references themselves can be wrong. Plus, higher lexical similarity doesn't necessarily
+- [0:12:48.320] mean a better response. There are many ways to express the same idea. Third, semantic similarity.
+- [0:12:52.960] This is a continuous measure of whether two texts have the same meaning, regardless of the specific
+- [0:12:58.000] words used. This is typically implemented by comparing text embeddings using metrics like cosine similarity.
+- [0:13:03.440] The advantage is that it doesn't require references, but it does depend on the quality of the underlying
+- [0:13:08.159] embedding algorithm. One of the most powerful and common methods for evaluating AI models in production
+- [0:13:12.960] is using another AI model as a judge. These AI judges are fast, easy to use, and relatively
+- [0:13:18.559] cheap compared to human evaluators. They can work without reference data and can judge attributes
+- [0:13:23.039] like correctness, toxicity, hallucinations, and more. Studies have shown that AI judges can correlate
+- [0:13:27.679] strongly with human evaluators, sometimes showing higher agreement than between different human judges.
+- [0:13:33.039] They can also explain their decisions, which helps with transparency. You can use AI judges to
+- [0:13:37.679] score outputs, compare outputs to references, or pick the best of two responses. Since language
+- [0:13:42.639] models are generally better with text, the numbers, AI judges tend to perform better with
+- [0:13:46.399] classification tasks than numerical scoring. When creating prompts for AI judges, you need to include the
+- [0:13:51.200] evaluation task, criteria, and scoring system. Few shot examples generally work better than zero shot,
+- [0:13:57.600] which we'll talk about later in the prompt engineering section. Though longer prompts do increase costs.
+- [0:14:02.639] Interestingly, you don't always need your strongest model as the judge. Specialized smaller models
+- [0:14:07.039] can often perform evaluation tasks effectively, which helps reduce costs in latency. However, of course,
+- [0:14:12.480] AI judges have limitations. Like all AI applications, they're probabilistic. The same judge
+- [0:14:17.440] given the same input can produce different scores if prompted differently or simply run twice. This makes
+- [0:14:22.639] evaluation results harder to reproduce or trust. Additionally, metrics aren't standardized across
+- [0:14:27.440] different systems. One system's definition of faithfulness might differ from another.
+- [0:14:32.559] Models also exhibit biases, they'd buy preferred responses from the same model, this is called self bias.
+- [0:14:38.000] They're the first answer in a comparison, this is position bias, or prefer a lengthier answers,
+- [0:14:43.200] verbose it ebiose. You can mitigate these biases through techniques like randomizing the order of responses,
+- [0:14:48.240] but this also increases costs. Now that we understand evaluation, let's talk on one of the most crucial
+- [0:14:53.360] decisions in AI engineering. Model selection. With the increasing number of readily available foundation
+- [0:14:58.799] models, the challenge isn't developing models but selecting the right one for your application. During
+- [0:15:03.360] application development, you'll go through model selection multiple times as you progress through
+- [0:15:07.519] different adaptation techniques. For instance, when doing prompt engineering, you might start with this
+- [0:15:11.840] strongest model to evaluate feasibility, then work backwards to see if smaller models would suffice.
+- [0:15:16.799] If you decide to fine tune, you might start with a small model to test your code before moving to a larger one.
+- [0:15:21.440] The selection process typically involves two key steps. First, finding the best achievable performance
+- [0:15:26.720] on the task, and then second, mapping models along a cost performance axis and choosing the model
+- [0:15:32.080] that gives the best performance for your budget. Your criteria for evaluating a model can be
+- [0:15:36.320] organized into four buckets. First, domain-specific capabilities. How well does the model
+- [0:15:41.120] understand your specific domain? For example, if you're summarizing legal documents, how well does it
+- [0:15:45.919] understand legal terminology? Second, general capabilities. How coherent, faithful, or factually consistent
+- [0:15:52.000] are the outputs. Third, instruction following capabilities. Does the model follow the format
+- [0:15:56.399] instructor you requested, and fourth, cost and latency? How expensive is the model to run,
+- [0:16:01.039] and how quickly does it respond? Sometimes, rather than evaluating absolute quality, you just need to
+- [0:16:05.600] determine which model is best for your use case. This can be done through point-wise evaluations, so you
+- [0:16:09.919] score each model independently, or comparative evaluation where you directly compare outputs. When
+- [0:16:15.120] evaluating models, you also need to differentiate between hard attributes and soft attributes. Hard attributes
+- [0:16:19.919] are impossible or impractical to change. These include, license restrictions, training data composition,
+- [0:16:26.000] model size, privacy requirements, and the level of control you need. These are often determined
+- [0:16:30.720] by the model providers or your own internal policies, and they can significantly limit your pool of
+- [0:16:34.960] options. Soft attributes, on the other hand, can be improved through adaptation techniques,
+- [0:16:38.879] psych-pomptan genuery, or fine-tuning. These include things like accuracy, toxicity, and factual
+- [0:16:43.200] consistency. A high-level workflow for model selection looks like this. Filter out models whose hard
+- [0:16:48.159] attributes don't work for you. Then, use publicly available information like benchmark performance
+- [0:16:52.559] to narrow down to the most promising candidates. Third, run your own experiments to find the best
+- [0:16:56.960] model given all of your objectives. Fourth, continually monitor your chosen model in production to detect
+- [0:17:01.759] failures and collect feedback. Most companies won't build foundation models from scratch, so another
+- [0:17:06.079] question is whether to use commercial model APIs or host an open source model yourself. Let's clarify some
+- [0:17:10.960] terminology first. Originally, open source meant any model you could download and use. But some
+- [0:17:16.160] argue that a model should only be considered truly open source if its training data is also publicly
+- [0:17:21.279] available. This allows for more flexible usage like retraining from scratch with modifications.
+- [0:17:24.960] Models with open weights, but closed training data are sometimes called open weight models,
+- [0:17:29.039] while those with both open weights and open data are open models. So, most so-called open source models
+- [0:17:34.400] are actually just open weight. These models also come with different licenses that may restrict
+- [0:17:38.319] commercial use or limit how you can use the models outputs for training other models. For a model to
+- [0:17:42.880] be accessible to users, a machine needs to host and run it. The service that hosts the model
+- [0:17:47.119] and handles queries is often called the inference service. While the interface the users interact with
+- [0:17:51.440] is the model API. After creating a model, developers can choose to open source it, make it accessible
+- [0:17:56.480] via an API or both. Typically, model providers open source their weaker models and keep their best ones
+- [0:18:01.599] behind paywalls. Whether to host a model yourself or use a model API depends on several factors.
+- [0:18:06.319] First, data privacy. If your company has strict data privacy policies that prevent sending data
+- [0:18:11.279] outside the organization, externally hosted model APIs are not an option. There's also the risk that
+- [0:18:16.319] API providers might use your data to train their models. Next, data lineage and copyright.
+- [0:18:21.200] Most models are transparent about their training data, an intellectual property laws around AI are still
+- [0:18:26.079] evolving. It's unclear whether using a model trained on copyrighted data could create legal issues for
+- [0:18:31.200] your product. Next, performance. The gap between open source and proprietary models is closing,
+- [0:18:36.720] but the strongest models will likely remain proprietary. Commercial APIs often provide additional
+- [0:18:41.359] capabilities out of the box. Like, scalability, function calling, so accessing external tools,
+- [0:18:46.960] for example, structured outputs and output guardrails. These can be challenging to implement yourself,
+- [0:18:52.319] so many companies turn to API providers. However, this means you'll be restricted to their functionality.
+- [0:18:57.279] You might not be able to fine tune or access log probabilities, for example. Typically,
+- [0:19:01.519] proprietary models are easy to start with and scale, but they can become expensive with heavy usage
+- [0:19:06.480] and offer less flexibility. It's wise to design your application with a standard internal API,
+- [0:19:11.519] so you can easily swap between models if needed. Control is another consideration. What happens if your
+- [0:19:16.640] API provider goes out of business, changes their terms of service or is banned in certain regions.
+- [0:19:21.599] And if you want to run a model on device, third-party APIs aren't an option. There are numerous benchmarks
+- [0:19:27.119] for different use cases, and a tool that helps you evaluate a model on multiple benchmarks is called an evaluation
+- [0:19:33.119] For example, open AI's e-valls lets you run any of around 500 existing benchmarks to evaluate their models.
+- [0:19:38.799] When using public leader boards, you need to consider which benchmarks to include in your aggregated ranking,
+- [0:19:43.839] how to weigh different benchmarks, and how to handle benchmarks that use different metrics like accuracy,
+- [0:19:48.400] F1, blue, etc. Keep in mind that the goal is to select a small subset of models for more rigorous
+- [0:19:53.759] testing with your own benchmarks and metrics. Public benchmarks rarely represent your applications needs
+- [0:19:58.799] perfectly, and they may suffer from data contamination, which is when the models were trained on the same
+- [0:20:03.440] data they're being evaluated on. To deal with contamination, you first need to detect it, using heristics like
+- [0:20:08.640] end-gram overlapping and perplexity. If perplexity on the evaluation data is unusually low,
+- [0:20:13.920] it's possible the model has seen this during training. Once you've narrowed down your model candidates,
+- [0:20:18.079] you need a robust evaluation pipeline. Evaluate both the end to end output and each component's
+- [0:20:23.039] intermediate outputs independently. You can use something called turn-based evaluation where you assess
+- [0:20:27.920] the quality of each output, and task-based evaluation, where you measure whether the system completes a task
+- [0:20:33.680] and how many turns it takes. First, think about what makes a good response, factors like relevance,
+- [0:20:39.039] factual consistency, and safety. Then create test queries and generate multiple responses to see how models
+- [0:20:44.880] perform. Develop detailed rubrics with examples for your scoring system. Whether you use binary
+- [0:20:50.160] scores, continuous scales, or something else depends on your data and your needs. The key is to make your rubric
+- [0:20:55.759] unambiguous so that human evaluators can follow it consistently. Most importantly,
+- [0:21:00.160] tire evaluation metrics to business metrics. If your customer support chatbot's factual consistency is
+- [0:21:05.519] 80%, what does that mean for the business? Perhaps you can automate 30% of customer support requests at that
+- [0:21:11.359] level, but at 90% consistency, you could automate 50%. This lets you quantify the business impact of
+- [0:21:16.640] model improvements. You'll also need to establish a usefulness threshold. For instance, your chatbot must be
+- [0:21:22.319] 90% factually consistent to be viable in production. Different criteria might require different
+- [0:21:27.680] evaluation methods. You might use a specialized toxicity classifier, semantics and
+- [0:21:32.400] polarity metrics to measure relevance, and an AI judge to assess factual consistency. You can even
+- [0:21:38.000] mix and match evaluation methods for the same criteria. For example, maybe use a cheap classifier
+- [0:21:42.960] on all your data, and an expensive AI judge on just 1% for high quality signals. While automated
+- [0:21:48.720] metrics are preferable for scale, don't hesitate to include human evaluation, even in production.
+- [0:21:54.079] Just do it on a subset of data to keep costs manageable. It's also crucial to evaluate your
+- [0:21:58.640] application on different slices of data, or users to ensure it performs well across segments and
+- [0:22:03.759] avoid biases. This helps you identify areas for improvement and prevents Simpson's paradox,
+- [0:22:08.960] where a model performs better on aggregate but worse on each individual subset. How much evaluation
+- [0:22:14.480] data you need depends on your application and methods? Generally, you want enough to be reliable,
+- [0:22:19.359] but not so much that costs become prohibitive. A good way to test reliability is to create multiple
+- [0:22:24.400] bootstraps samples of your evaluation set and see if they yield similar results. If you get 90% on one
+- [0:22:29.519] bootstraps, but 70% on another, your evaluation pipeline isn't trustworthy. Finally, evaluate the reliability
+- [0:22:34.880] of a pipeline itself. First, is it getting signals right? Do better responses indeed get higher scores?
+- [0:22:40.160] Next, do better evaluation metrics lead to better business outcomes? Third, how reliable is the
+- [0:22:44.960] pipeline? If you run it twice, do you get the same results? Fourth, how correlated are your metrics?
+- [0:22:49.839] You don't need two metrics if they're perfectly correlated, but completely uncorelated metrics might indicate
+- [0:22:54.319] problems. And finally, what cost and latency does your evaluation pipeline add to your application?
+- [0:22:59.440] Model selection remains one of the hardest, but most important topics in AI engineering.
+- [0:23:03.920] With the rapidly growing number of foundation models available, your challenge isn't developing
+- [0:23:07.920] models, but selecting the right one for your specific needs. Balancing performance, cost,
+- [0:23:12.559] privacy, and control. Now let's dive into what might be the most accessible, yet surprisingly nuanced
+- [0:23:17.839] aspect of AI engineering. Prompt engineering. If you've ever used chatchip-ete, you've already done
+- [0:23:22.960] some form of prompt engineering, but there's much more to it than just typing questions. Prompt
+- [0:23:27.359] engineering refers to the process of crafting instructions that guide a model to generate your desired outcome.
+- [0:23:32.319] It's the easiest and most common model adaptation technique because, unlike fine tuning,
+- [0:23:37.039] it doesn't change the model's weights. You're just telling the model what you want it to do.
+- [0:23:40.960] While it's the most accessible entry point to AI engineering, don't be fooled into thinking that it's
+- [0:23:45.200] simplistic. Effective prompt engineering requires the same experimental rigor as any machine learning task.
+- [0:23:50.960] You should extract maximum value from prompting before moving to more resource intensive techniques like
+- [0:23:55.440] fine tuning. That said, understanding prompt engineering alone isn't enough for production ready systems.
+- [0:24:00.400] You'll still need knowledge of statistics, engineering, and classical ML for experiment tracking
+- [0:24:04.720] evaluation and data-sectoration. Prompt typically consists of one or more of these components.
+- [0:24:09.839] First, the task description. This includes the model's role and expected output format. For example,
+- [0:24:15.839] you are a helpful medical assistant, analyze the following symptoms and suggest possible
+- [0:24:19.759] conditions listing them in order of likelihood. Next, examples. Be sure to show the model how to
+- [0:24:24.880] perform the task. For instance, if you want a model to classify text as toxic or non-toxic,
+- [0:24:29.599] you might include examples of each. Third, the concrete task. This is the specific job you want the
+- [0:24:34.319] model to do. Like answering a question or summarizing a book. How much prompt engineering you need
+- [0:24:38.400] depends on the model's robustness to prompt perturbation. A robust model shouldn't produce dramatically
+- [0:24:43.279] different outputs if you write the number five versus write it out FIVE. This robustness is strongly
+- [0:24:48.880] correlated with the model's overall capability. It's also worth noting that different models have different
+- [0:24:53.119] preferred prompt structures. For example, GPT-4 typically performs better when the task description is at the
+- [0:24:58.160] beginning of the prompt, while Lama 3 does better when the task appears at the end.
+- [0:25:02.160] Teaching models what to do via prompts is known as in-context learning. Each example in your prompt is
+- [0:25:07.200] called a shot. So we get the terms few shot, zero shot and one shot learning. How many examples you need
+- [0:25:12.720] depends on both the model and your application, so experimentation is necessary. The number of examples you
+- [0:25:17.759] can include is limited by the model's context length and for API models, your cost constraints. Many
+- [0:25:23.599] modern models distinguish between system and user prompts. The system prompt contains the task description,
+- [0:25:29.279] telling the model what role to play, its goals and constraints. The user prompt contains
+- [0:25:33.359] this specific task or query. Almost all applications like chat to PT have system prompts, usually
+- [0:25:38.240] created by the application developers rather than users. The system and user prompts are combined using
+- [0:25:43.119] a template that can vary between models and versions. If you use the wrong template, you might experience
+- [0:25:47.920] unexpected performance issues. Even small mistakes like an extra new line can cause problems. When
+- [0:25:52.720] constructing inputs make sure to follow the model's chat template exactly. This is especially
+- [0:25:57.359] important if you're using third-party tools to construct prompts as template mismatches
+- [0:26:02.000] often lead to silent failures. Models typically understand instructions better when they appear at the
+- [0:26:06.720] beginning or end of the prompt rather than varied in the middle. Let's go through some key strategies
+- [0:26:10.960] for effective prompt engineering. First, write clear and explicit instructions. If you want a model to
+- [0:26:16.480] score an essay, explain the scoring system you want it to use. Should it allow fractional scores?
+- [0:26:21.119] What should it do if it can't determine an answer? Be specific to reduce ambiguity. Second,
+- [0:26:25.839] ask the model to adopt a persona. Asking a model to respond as a particular character or
+- [0:26:30.079] expert can significantly change its output style and focus. For example, respond is an experience
+- [0:26:35.599] pediatrician or answers if you were explaining it to a 10-year-old. Third, provide examples.
+- [0:26:40.720] Examples can dramatically shift a model's response style. For instance, asking, will Santa bring
+- [0:26:45.920] me presence without examples might get a straight note. Santa is fictional response. But if you provide
+- [0:26:51.519] an example of a whimsical answer about the tooth fairy, the model is more likely to play along.
+- [0:26:56.160] Four, specify the output format. Tell the model exactly how you want the response structured. This
+- [0:27:02.000] might mean requesting things like no pre-amples, so none of this based on the content of this essay
+- [0:27:06.960] I'd give it a score of.dought. You can also ask for specific formats like JSON or Markdown
+- [0:27:12.400] and particular sections or headings. Five, break complex tasks into simpler sub-tasks. This not only
+- [0:27:18.720] improves performance, but also makes monitoring, debugging, and parallelization easier. However,
+- [0:27:23.200] it can increase the latency perceived by users if they don't see the intermediate outputs. You can
+- [0:27:27.599] also use cheaper models for simpler steps to reduce cost. Six, give the model time to think. Several
+- [0:27:33.200] techniques can improve model reasoning. Chain of thought prompting, so think this through step by step,
+- [0:27:38.400] process instructions, so something like first analyze the key themes. Second, identify the author's
+- [0:27:43.759] perspective, and so on. Next, self-critique. Ask the model to check its own work. These approaches
+- [0:27:49.279] generally improve quality, but increase latency and token usage. Seven, iterate, systematically. This is
+- [0:27:54.720] so important. Different techniques work better for different models, so experimentation is crucial.
+- [0:28:00.160] Always version your prompts and use an experiment tracking tool with standardized evaluation metrics
+- [0:28:04.960] and data. Also, separate prompts from code. Store them in configuration files rather than hard
+- [0:28:10.480] coding them. This will make it way easier to update. Various tools aim to automate the prompt engineering
+- [0:28:14.799] workflow, including open prompt and DSP-y. These tools let you specify input and output formats, evaluation
+- [0:28:20.880] metrics, and evaluation data. Then, essentially, they perform auto-ML to find the optimal prompts.
+- [0:28:26.160] However, these tools can be expensive if they make many API calls under the hood. They also might produce
+- [0:28:31.119] prompts with typos or other issues, and they may not keep up with changing model requirements. For these
+- [0:28:35.680] reasons, it's best to start with manual prompt engineering before moving to automated tools. You can
+- [0:28:39.759] also use AI models themselves to write and refine prompts. Once your application is available to
+- [0:28:44.160] users, it may face attacks from malicious actors trying to exploit it. Three main types of prompt attacks
+- [0:28:49.039] include prompt extraction attacks, where attackers might try to extract your system prompt to either
+- [0:28:53.839] replicate or exploit your application, jail-breaking, and prompt injection. These attacks attempt to
+- [0:28:58.799] subvert the model's safety features or get it to perform unauthorized actions, like providing instructions
+- [0:29:04.079] for home-flectivities or executing dangerous code, and third information extraction. These attacks
+- [0:29:08.880] try to get the model to reveal sensitive information from its training data or context. To defend
+- [0:29:13.599] against these attacks, consider the following strategies. Use benchmarks to evaluate safety against
+- [0:29:18.240] adversarial attacks, conduct security red teaming, to proactively find weaknesses, be explicit in your
+- [0:29:23.680] prompts about what information the model should not return, repeat the system prompt before and after
+- [0:29:28.240] user inputs to remind the model of its constraints. Design systems with safety boundaries like running
+- [0:29:33.200] generated code only in isolated environments require human approval for potentially impactful
+- [0:29:38.240] actions, define out of scope topics for your application, use anomaly detection to identify unusual
+- [0:29:43.599] prompts, and implement guardrails on both inputs and outputs. When evaluating your system security,
+- [0:29:49.119] track both the violation rate, so how often attacks exceed, and the false refusal rate,
+- [0:29:54.240] how often the model incorrectly refuses legitimate requests. You need to balance these metrics.
+- [0:29:59.279] Perfect security with too many false refusals creates a really frustrating user experience.
+- [0:30:03.680] By approaching prompt engineering with this combination of creativity and rigor,
+- [0:30:07.599] you can extract remarkable performance from foundation models without the complexity and
+- [0:30:11.599] expensive fine tuning. Remember that small changes in your prompts can lead to significant
+- [0:30:16.000] improvements in output quality, so experiment, widely and measure carefully. Now that we've covered
+- [0:30:20.880] prompt engineering, let's explore how to give foundation models access to information beyond what they
+- [0:30:25.039] were trained on. To solve a task effectively, a model needs two things. Instructions on how to
+- [0:30:29.920] perform the task and the necessary information to complete it. Two dominant patterns have emerged
+- [0:30:34.559] for providing models with the information they need. Retrieval augmented generation or rag and the
+- [0:30:39.119] agente pattern. Rag allows models to retrieve relevant information from external data sources.
+- [0:30:44.240] While the agente pattern enables models to use tools like web search and APIs to gather information
+- [0:30:49.359] actively. While rag is primarily used for context construction, the agente pattern can do much more.
+- [0:30:54.799] Let's start with rag first. So what is rag? Retrieval augmented generation is a technique
+- [0:30:59.599] that enhances a model's generation capabilities by retrieving relevant information from external
+- [0:31:04.559] memory sources. These sources could be an internal database, a user's previous chat sessions,
+- [0:31:09.519] or even the internet. You can think of rag as a technique to construct context specific to each query,
+- [0:31:14.240] connecting the model with information it wasn't trained on or might have forgotten. A rag system consists
+- [0:31:18.960] of two main components, a retriever that fetches the information from the external memory source,
+- [0:31:23.519] and a generator, the foundation model, that produces a response based on the retrieved information.
+- [0:31:28.240] In today's rag systems, these components are often trained separately, with many teams using
+- [0:31:32.559] off the shelf retrievers and models. However, fine-tuning the entire rag system from end to end can
+- [0:31:37.440] significantly improve performance. The success of a rag system heavily depends on its retriever.
+- [0:31:42.240] A retriever performs two main functions, indexing and querying. Indexing involves processing data so that
+- [0:31:47.599] it can quickly be retrieved later. This is the prepared story step where you organize your knowledge base.
+- [0:31:52.319] Quarying is the process of sending a search query to retrieve data relevant to it. How you index
+- [0:31:56.960] your data determines how you retrieve it later. Let's walk through a simple example. Imagine your
+- [0:32:01.200] external memory as a database of documents, like contracts or meeting notes. These documents can
+- [0:32:05.440] range from 10 tokens to a million tokens in length. Now you've retrieving whole documents would make
+- [0:32:10.000] your context arbitrarily long, potentially exceeding the model's context window. To avoid this,
+- [0:32:14.720] you typically split each document into smaller chunks, which we'll discuss later. For each user query,
+- [0:32:20.160] your goal is to retrieve the data chunks most relevant to that query. Then, with some post-processing
+- [0:32:24.880] to join the retrieve chunks with the user's prompt, you generate the final prompt that goes to the
+- [0:32:29.119] model. Many existing retrieval algorithms can be used for a rag. Retrieval works by ranking documents
+- [0:32:34.400] based on their relevance to a given query and algorithms differ in how they compute these relevant
+- [0:32:38.400] scores. First, term-based retrieval. This is also called lexical retrieval, and this approach
+- [0:32:43.440] finds relevant documents based on keywords. While this is straightforward, it has several limitations.
+- [0:32:48.960] So, many documents might contain a term without truly being about it, and queries can be long with
+- [0:32:53.839] many terms that aren't equally important, so TFIDF can help address this. Also, simple tokenization
+- [0:32:59.680] can miss semantic relationships. Term-based retrieval is generally faster than embedding based
+- [0:33:04.480] approaches during both indexing and querying. It also works well out of the box with existing
+- [0:33:09.440] systems like elastic search. Embedding based retrieval is another option. This approach computes relevance
+- [0:33:15.039] at the semantic level rather than a lexical one, ranking documents based on how closely they're
+- [0:33:19.759] meaning aligns with the query. The process works like this. Convert your original data to embeddings
+- [0:33:24.480] using an embedding model. Store these embeddings in a vector database. When a query comes in,
+- [0:33:28.640] convert it to an embedding using the same model. Fetch the K-data chunks whose embeddings are closest
+- [0:33:33.359] to the query embedding, and return them. Fectors search is typically framed as a cameo-less neighbor's search
+- [0:33:37.839] problem. This can be computationally expensive for large data set, so approximate nearest neighbor's
+- [0:33:42.079] algorithms are often used instead. In practice, most developers won't implement vector search
+- [0:33:46.079] themselves, but will use existing vector databases. These databases organize vectors into buckets,
+- [0:33:50.960] trees, or graphs using various herristics to increase the likelihood that similar vectors are stored
+- [0:33:55.279] close to each other. Embedding based retrieval can significantly outperform term-based retrieval over time,
+- [0:34:00.480] especially if you find tune your embedding model and retriever. But it has its downsides. It can make
+- [0:34:05.519] it harder to search for specific names or error codes, and generating embeddings can be expensive
+- [0:34:10.400] and introduce latency. A production retrieval system typically combines several approaches. For example,
+- [0:34:15.599] a cheaper, less precise retriever like term-based search might first fetch candidates, and then a
+- [0:34:20.320] more precise, but expensive mechanism like Canon finds the best options among those candidates.
+- [0:34:25.280] Depending on your task, certain tactics can increase the chance of retrieving relevant documents.
+- [0:34:29.519] A simplest approach is to divide documents into chunks of equal length based on characters,
+- [0:34:33.599] word sentences, or paragraphs. Overlapping chunks can ensure that important boundary
+- [0:34:37.679] information is included in at least one chunk. Smaller chunks sizes allow for more diverse
+- [0:34:42.000] information, since you can fit more chunks into the model's context, but this can also result in the
+- [0:34:46.320] loss of important context. Smaller chunks also increase computational overhead, especially for embedding
+- [0:34:51.280] based retrieval. There's no universal best chunks size or overlap percentage. You just need to experiment
+- [0:34:56.639] based on your specific data and task. The initial document rankings generated by the retriever can be
+- [0:35:01.360] further refined to be more accurate. This is especially useful when you need to reduce the number of
+- [0:35:05.519] retrieved documents due to context window limitations. Documents could be re-ranked based on various
+- [0:35:10.320] factors such as resencene, so maybe you give more weight to newer data, or additional relevant signals.
+- [0:35:15.679] Next, let's talk about query rewriting. Also known as query re-formulation, normalization, or expansion,
+- [0:35:22.800] this technique involves rewriting queries to include necessary context. For example, if you use your
+- [0:35:28.159] asks, what's its population? After previously asking about Paris, the query might be expanded to,
+- [0:35:34.320] what's the population of Paris. Each chunk can be augmented with relevant context to make it
+- [0:35:39.360] easier to retrieve. This might include metadata like tags and keywords, or for e-commerce products,
+- [0:35:44.719] it could be information like descriptions and reviews. You can also augment chunks with context from the
+- [0:35:49.599] full document to help them retain more of the original meaning. For example, maybe a summary of the entire
+- [0:35:54.320] document. When choosing a retrieval solution, consider first, what retrieval mechanisms it supports,
+- [0:36:00.079] term-based embedding based and or hybrid. For vector databases, what embedding models and vector
+- [0:36:05.679] search algorithms are supported. Also consider scalability, both for data storage and query traffic.
+- [0:36:11.280] You'll need to think about indexing speed and batch processing capabilities, query latency,
+- [0:36:16.000] pricing structure, and compliance requirements as well. It's also important to note that RIG isn't
+- [0:36:20.320] limited to just text. It can also be used with multi-model and tabular data. For instance, if a user asks,
+- [0:36:26.239] what's the color of the house and the Pixar movie up, a multi-model RIG system might first
+- [0:36:30.559] retrieve an image of the house to help the model answer? Similarly, RIG can work with tabular data
+- [0:36:34.800] using text to SQL conversations. The system can execute a query on a database and then generate a response
+- [0:36:40.159] based on the results. For complex database schemas, you might need an intermediate step to predict
+- [0:36:44.559] which table to use for each query, especially if there are too many tables to fill all this schemas in the
+- [0:36:48.559] context window. In the next part, we'll explore the agente pattern, which goes beyond passive retrieval
+- [0:36:53.599] to actively interact with external tools and APIs. The agente pattern is a more active approach
+- [0:36:58.239] to extending AI capabilities. This is a rapidly evolving field, so consider the section
+- [0:37:02.960] more experimental than the others we've covered. At its broadest definition, an agent is anything that
+- [0:37:07.599] can perceive its environment and act upon it. For AI systems, this means that a model can observe
+- [0:37:12.480] its environment, make decisions based on those observations, take actions that affect the environment,
+- [0:37:17.599] and learn from the outcomes of those actions. The environment is defined by the use case. For a game
+- [0:37:22.719] playing agent, the game is the environment. For a web scraping agent, the internet is the environment.
+- [0:37:27.119] What makes agents powerful is the set of tools they have access to. For example, chatchiputee is an
+- [0:37:31.840] agent that can search the web, execute Python code, and generate images among other capabilities.
+- [0:37:36.960] Remember our Rags example with tabular data? That was actually a simple agent with three actions,
+- [0:37:41.920] generating SQL queries, executing those queries, and producing response. Let's see how this works in
+- [0:37:46.719] practice. If we use our asks, project the sales revenue over the next three months. The agent might,
+- [0:37:52.400] first reason about how to accomplish the task. Then generate a SQL query to fetch historical sales data.
+- [0:37:58.159] Next, it would execute that query against the database, analyze if the retrieved information is sufficient,
+- [0:38:03.119] possibly generate an executed additional queries, and then create a projection based on the gather data.
+- [0:38:08.079] Finally, it would conclude that the task has been successfully completed. Compared to simpler AI
+- [0:38:12.159] applications, agents require more powerful models, because they often need to perform multiple steps
+- [0:38:16.880] to complete a task. The overall success rate decreases with each step because of compounding errors,
+- [0:38:21.840] and the stakes are higher since agents have access to potentially powerful tools.
+- [0:38:25.679] Speaking of tools, agents can be equipped with various tools which fall into several categories.
+- [0:38:30.320] First, knowledge augmentation tools. These could be things like text or image retrievers, as in Rags,
+- [0:38:35.920] SQL Executors for database access, web search capabilities, APIs for accessing inventory systems,
+- [0:38:41.679] email readers, etc., and web browsers for navigating online content, whether public or private.
+- [0:38:46.719] Next, we have capability extension tools like calculators since AI models often struggle with complex math,
+- [0:38:52.239] timezone or unit converters, translation services, and code interpreters. We also have right action
+- [0:38:57.679] tools, so tools that enable the agent not just to read but also write to systems. These can
+- [0:39:02.320] automate workflows but require strong security protocols. Complex tasks require planning,
+- [0:39:07.440] and there are many possible ways to decompose a task. Not all approaches will be successful
+- [0:39:11.840] and not all will be efficient. To help with debugging and to prevent cases where a model executes
+- [0:39:16.320] unnecessary API calls, planning should be decoupled from execution. The process typically works like this.
+- [0:39:22.400] First, ask the agent to generate a plan. Then validate the plan before execution, and then only execute
+- [0:39:28.639] once validated. Plans can be validated using heristics like removing plans with invalid actions or too many
+- [0:39:34.159] steps, or by using another AI model as a judge. You can even generate several plans in parallel
+- [0:39:39.679] and then ask an evaluator to pick the most promising one. For particularly important or sensitive
+- [0:39:44.400] tasks, you might want a human in the loop to review plans before execution. While foundation model
+- [0:39:48.880] agents use the model itself as the planner, reinforcement learning agents are trained using reinforcement
+- [0:39:53.599] learning algorithms. This approach uses more resources than foundation models but could offer performance
+- [0:39:58.320] improvements in the future. The simplest way to turn a model into a plan generator is through prompt
+- [0:40:02.639] engineering. You tell the model what functionality has available and the expected inputs and outputs
+- [0:40:07.199] for each tool. You can improve your prompts by writing better system prompts with more examples,
+- [0:40:11.760] providing clearer descriptions of tools and their parameters, simplifying functions as much as possible,
+- [0:40:16.559] using a stronger model, or fine-tuning a model specifically for plan generation. As a practical tip,
+- [0:40:21.679] always ask the system to report what parameter values it uses for each function call. This provides a
+- [0:40:26.800] sanity check that can catch many issues before execution. Another useful approach is to generate plans
+- [0:40:31.840] in natural language first, then translate them to the exact function calls in a second step.
+- [0:40:36.480] This helps if function names change over time or if you find an model specifically for plan creation.
+- [0:40:41.679] The translation can often be done by a smaller cheaper model. Agents can fail in various ways,
+- [0:40:46.719] so it's important to have robust evaluation methods. There are lots of different things that can
+- [0:40:50.719] go wrong so we could have planning failures like using invalid tools, using valid tools, but with
+- [0:40:55.920] invalid parameters, using valid tools with incorrect parameter values, or failing to achieve the goal
+- [0:41:01.039] or satisfy constraints. To evaluate planning capability, create a data set where each example is a
+- [0:41:06.000] tuple of task, available tools, and constraints. For each task, use the agent to generate multiple plans
+- [0:41:11.679] and compute metrics like the percentage of generated plans that are valid. How many attempts it takes to
+- [0:41:16.480] get a valid plan, percentage of tools called that are valid, and how often invalid tools are called.
+- [0:41:21.519] You could also have tool failures so that could include things like bad translation from high-level plans
+- [0:41:26.079] to specific function names, no access to the required tools, or tools giving incorrect outputs,
+- [0:41:31.280] like poorly generated SQL queries. For this, your efficiency metrics might be. How many steps
+- [0:41:36.079] does the agent need on average to complete a task? What's the cost to complete a task? How long does each
+- [0:41:41.039] action typically take? Are there particularly slow or expensive actions? And how does the agent
+- [0:41:45.679] compare to baselines, which might be another agent or a human? One of the key challenges for agents
+- [0:41:50.400] is remembering information over time. A memory system allows a model to retain and utilize information
+- [0:41:55.440] across interactions. AI models typically have three main memory mechanisms. There's the internal
+- [0:42:00.880] knowledge embedded in the model itself through training. There's the context window, which is kind of
+- [0:42:04.800] your short-term memory for immediate session specific information. And finally, external data sources
+- [0:42:10.000] like rag systems. This is kind of like your long-term memory. Information that is essential to all tasks
+- [0:42:14.880] should be incorporated via training. Rarely needed information should reside in long-term memory,
+- [0:42:19.599] while short-term memory is for immediate context specific information. Benefits of a well-designed
+- [0:42:24.480] memory management system includes storing information longer than the context window allows.
+- [0:42:29.039] For assisting information between sessions, making a model more consistent in its responses in actions.
+- [0:42:33.920] By combining rag for information access, tools for capability extension, planning for complex tasks,
+- [0:42:40.000] and memory systems for continuity, agents can tackle increasingly sophisticated problems.
+- [0:42:45.599] While this field is still evolving rapidly, it represents one of the most promising frontiers in
+- [0:42:49.599] AI engineering. As with all powerful technologies, agent systems require careful consideration
+- [0:42:54.400] of safety, security, and ethical use. The more capable an agent becomes, the more critical it is
+- [0:42:59.039] to ensure it operates within appropriate boundaries and with proper oversight. Now let's explore fine-tuning.
+- [0:43:03.920] The process of adapting a model to a specific task by further training it and adjusting its weights.
+- [0:43:08.639] While prompt engineering and rag are relatively lightweight techniques, fine-tuning offers
+- [0:43:12.960] deeper customization but requires more resources and expertise. So when to fine-tune, fine-tuning can
+- [0:43:18.719] improve a model's performance in two ways. First, by enhancing domain-specific capabilities,
+- [0:43:23.599] like coding or answering medical questions, and second, improving instruction following abilities,
+- [0:43:28.480] like adhering to specific output formats. However, fine-tuning requires significant upfront investment.
+- [0:43:33.519] It often needs more memory than what's available on a single GPU, making it expensive. This is why
+- [0:43:37.920] reducing memory requirements has become a primary motivation for many fine-tuning techniques that we'll
+- [0:43:42.480] discuss later. So you should consider fine-tuning when you've already exhausted what you can achieve
+- [0:43:47.199] with prompt-based methods. You need to produce consistent structured outputs and you're working
+- [0:43:52.239] with smaller models that need to perform better on specific tasks. A common approach is model
+- [0:43:56.480] distillation, fine-tuning a small model to imitate a larger model's behavior using data generated by the
+- [0:44:01.840] large model. On specific tasks, a small fine-tune model may outperform a larger general purpose model.
+- [0:44:07.440] On the other hand, you should avoid fine-tuning if you need a general purpose model. Fine-tuning can
+- [0:44:12.880] improve performance on specific tasks, but to great performance on others, or if you're just
+- [0:44:17.599] starting to experiment with a project. Many teams jump straight to fine-tuning before thoroughly exploring
+- [0:44:22.559] simpler approaches. So what about fine-tuning versus rag? After you've maximized performance gains from
+- [0:44:27.920] prompting, choosing between rag and fine-tuning depends on whether your model's failures are
+- [0:44:31.920] information based or behavior based. If the model fails because it lacks information, like private
+- [0:44:36.719] company data or recent events, rag gives the model better access to that information. If the model
+- [0:44:41.679] has behavioral issues, which I think is very funny to say, like outputs that are factually correct
+- [0:44:46.079] by irrelevant or they're in the wrong format, fine-tuning might help more. If your model has both issues,
+- [0:44:51.039] start with rag because it's easier. Begin with a simple term-based solution and evolve from there.
+- [0:44:55.519] In many cases, combining rag and fine-tuning will give you the biggest performance boost.
+- [0:44:59.760] So the workflow to adapt a model to a task might be, first, design a valuation criteria and an
+- [0:45:04.960] evaluation pipeline. Then try to get the model to perform the task with prompting alone, add more examples
+- [0:45:09.840] to the prompt from there. At that point, if the model continues to have information-based failures,
+- [0:45:14.079] try more advanced rag, like embedding based retrieval. If it continues to have behavioral issues,
+- [0:45:18.320] opt for fine-tuning. Finally, combine rag and fine-tuning for a bigger performance boost. Because of
+- [0:45:23.039] the scale of foundation models, memory is a major bottleneck for both inference and fine-tuning. The
+- [0:45:27.840] memory requirements for fine-tuning are typically much higher than for inference due to how neural networks
+- [0:45:32.079] are trained. neural networks are typically trained using back propagation. Each training step consists of
+- [0:45:37.119] a forward pass where we compute the output from the input and a backwards pass where we update
+- [0:45:41.440] the model's weights using signals from the forward pass. During inference, only the forward passes
+- [0:45:46.000] executed. During training, both passes are needed. The key contributors to a model's memory footprint
+- [0:45:51.440] during fine-tuning are the total number of parameters, the number of trainable parameters, and the numerical
+- [0:45:56.400] representation of these parameters. A trainable parameter is one that can be updated during fine-tuning.
+- [0:46:01.360] So during pre-training, all model parameters are updated. During inference, no parameters are updated,
+- [0:46:06.719] and during fine-tuning, some, or all of the parameters may be updated.
+- [0:46:10.639] Parameters that remain unchanged are called frozen parameters. One way to reduce training memory is
+- [0:46:15.519] through gradient check pointing, also called activation recompitation, where activations aren't stored,
+- [0:46:20.400] but recomputed as needed. This increases training time, but reduces memory requirements. The key
+- [0:46:24.800] insight here is that the more trainable parameters we have, the higher the memory footprint.
+- [0:46:28.719] Reducing the number of trainable parameters reduces memory requirements. This is the motivation behind
+- [0:46:33.280] parameter efficient fine-tuning, which we'll talk about in a bit. Another way to reduce the
+- [0:46:36.960] memory footprint is through quantization. Converting a model from a format with more bits to one with
+- [0:46:41.280] fewer bits. For a 13 billion parameter model using 32-bit floating point, each parameter requires four
+- [0:46:47.119] bytes, resulting in 52 gigabytes total. So if you reduce each value to 16 bits, the memory
+- [0:46:53.119] made a drop to 26 gigabytes. Inference is typically done using as few bits as possible, 16, 8, or even
+- [0:46:59.440] 4 bits. Training is more sensitive to numerical precision, so it's usually done in mixed precision,
+- [0:47:04.559] with some operations in higher precision, like 32 bits, and others in lower precision, like 16 or 8 bit.
+- [0:47:10.480] Different numerical formats balance range, so the span of values that can be represented, and precision,
+- [0:47:15.360] how exactly a number can be represented. There are a few different formats. Reducing precision can
+- [0:47:19.679] cause values to change or result in errors, so it's important to load models in their intended format.
+- [0:47:24.559] For example, when Lama 2 was released, its weights were optimized for BF16, causing significantly
+- [0:47:29.519] worst quality when loaded with Fp16. Now let's talk about PTFT. In the early days of smaller models,
+- [0:47:35.360] full fine tuning, so updating all the model parameters was common. This required a lot of high-quality
+- [0:47:40.559] annotated data and substantial computational resources. As models grew, people started using partial fine
+- [0:47:46.239] tuning, focusing on specific layers, like only the last layer. This reduces memory requirements,
+- [0:47:51.039] but it isn't very parameter efficient. Parameter efficient fine tuning techniques insert additional
+- [0:47:55.599] parameters into strategic locations in the model to achieve strong fine tuning performance with a small
+- [0:48:01.119] number of trainable parameters. While this can increase inference latency slightly, as adapters add
+- [0:48:06.480] computational steps, PTFT methods are generally not only parameter efficient, but also sample efficient.
+- [0:48:12.079] They can work with just a few thousand examples compared to the millions potentially needed for full fine
+- [0:48:17.039] PFT methods fall into two categories. So we have adapter-based methods, this is also called
+- [0:48:21.679] additive methods that add new model weights. And then we have soft, prompt-based methods that
+- [0:48:26.639] introduce special trainable tokens. The most popular adapter-based method is Laura,
+- [0:48:31.760] low rank adaptation. Unlike traditional adapters, Laura incorporates additional parameters without
+- [0:48:36.719] increasing inference latency. Instead of adding new layers, Laura uses modules that can be merged
+- [0:48:41.679] back into the original layers. Laura works by decomposing weight matrices into products of smaller
+- [0:48:46.559] matrices, then updating only these smaller matrices. For weight matrix with dimensions N by M,
+- [0:48:52.159] Laura first chooses a smaller dimension R, the rank. Then creates two matrices, A, which is N by R and B,
+- [0:48:58.400] which is R by M. During fine tuning only A and B are updated, while the original weights remain frozen.
+- [0:49:04.159] For inference, A and B can be multiplied together and added to the original weights. The efficiency of
+- [0:49:08.960] Laura depends both on the chosen rank and which matrices it's applied to. It's primarily used
+- [0:49:13.119] for transform modules in the attention modules. If you want to find tune a model from multiple tasks,
+- [0:49:17.840] you have several options. First, simultaneous fine tuning, training on a data set with examples from all
+- [0:49:23.039] tasks at once. This is harder and requires more data, or you could do sequential fine tuning,
+- [0:49:27.440] where you first train on task A and then on task B. But this can cause catastrophic forgetting,
+- [0:49:32.320] where the model loses its ability on earlier tasks. Or you can try model merging,
+- [0:49:36.639] so there you find two in different tasks separately, then combine the resulting models.
+- [0:49:40.960] Model merging offers greater flexibility than fine tuning alone. If you have two models that excel
+- [0:49:45.519] at different aspects of the same task, you can merge them into a single model that outperforms both.
+- [0:49:50.320] This approach can be done without GPUs, it can improve performance while reducing the memory footprint,
+- [0:49:54.960] it's an excellent option for on-device deployment, and it can facilitate federated learning where multiple
+- [0:49:59.920] devices train using separate data. Unlike on-sombling, which combines the outputs of multiple models,
+- [0:50:05.199] merging combines the models themselves. This improves performance without the higher inference cost of
+- [0:50:09.840] running multiple models. Several merging approaches exist, so we have summing, where we just add the
+- [0:50:14.320] weight values that the constituent models together. This is the most common. We could have layers stacking,
+- [0:50:18.559] so we take different layers from different models and stack them. This is also called Franken merging,
+- [0:50:23.039] or a concatenation, where we just combine the parameters. This is less recommended because it doesn't
+- [0:50:27.280] reduce memory compared to separate models. So here's a practical fine tuning approach and what a
+- [0:50:31.280] typical development path might look like. First, test your fine tuning code using the cheapest,
+- [0:50:36.159] fastest model you have, and ensure it works. Then test your data by fine tuning a mid-sized model.
+- [0:50:40.960] If training loss doesn't decrease with more data, something might be wrong. After that, run
+- [0:50:44.800] experiments with your target model to see how far you can push performance, and then map the
+- [0:50:48.880] price performance frontier and select the model that makes the most sense for your use case. Alternatively,
+- [0:50:54.000] a distillation path looks like this. Start with a small dataset and the strongest model you can
+- [0:50:58.559] afford. Then train the best possible model with this small dataset. Use this fine-tune model to
+- [0:51:03.519] generate more training data, use the expanded dataset to train a cheaper model. When choosing fine-tuning
+- [0:51:08.719] methods, here's something to consider. So for beginners, start with a doctor techniques like Laura
+- [0:51:13.199] before attempting full fine tuning. Understand that data volume matters. Full fine tuning typically
+- [0:51:17.920] requires thousands to millions of examples while PFT can work with hundreds. Also, you'll need to
+- [0:51:22.800] know how many fine-tune models you need. Adapter methods let you serve multiple variants that share a
+- [0:51:26.960] base model. There are also some key hyper parameters that you should know. These ones in particular
+- [0:51:30.960] significantly impact fine-tuning results. So we have the learning rate just like in machine learning.
+- [0:51:35.119] If the loss curve fluctuates, the learning rate is likely too high. If it's stable, but decreases
+- [0:51:39.360] vary slowly, the rates probably too low. Generally, start larger and decrease over time. We also have batch
+- [0:51:44.719] size. Larger batches, process training examples faster but require more memory. Small batches lead to
+- [0:51:49.760] more unstable training. So to address instability, you can accumulate gradients across several batches.
+- [0:51:54.400] We also need to think about the number of epochs. Smaller data sets typically need more epochs than
+- [0:51:59.039] larger ones. For millions of examples, one to two epochs might suffice. For thousands of examples,
+- [0:52:04.639] four to ten may be needed. Reduce epochs if you see overfitting. We also have prompt loss weight.
+- [0:52:09.599] For instruction fine-tuning, this determines how much prompts should contribute to the loss compared to the
+- [0:52:14.000] responses. If it's set to 100%, prompts and responses contribute equally. If it's 0%, the model
+- [0:52:19.679] learns only from responses. The default is typically 10%. While the technical process of fine-tuning
+- [0:52:24.400] has been simplified by frameworks that handle the training process and suggests sensible defaults,
+- [0:52:28.800] the strategic decisions around fine-tuning remain complex. The key is knowing wind-defined tune,
+- [0:52:33.840] which technique to use and how to balance the trade-offs between performance, resources, and data
+- [0:52:38.000] requirements. While most companies can't afford to train foundation models from scratch,
+- [0:52:42.159] nearly all can differentiate themselves through high-quality data sets for adaptation. As the same
+- [0:52:46.800] goes, garbage in and garbage out, and nowhere is this more true than in data set engineering.
+- [0:52:50.880] We're witnessing a shift from model-centric to data-centric approaches in AI development.
+- [0:52:54.880] Model-centric AI tries to improve performance by enhancing the models themselves,
+- [0:52:58.639] so designing new architectures, increasing model sizes, or developing new training techniques.
+- [0:53:02.719] Data-centric AI, on the other hand, focuses on improving performance by enhancing the data,
+- [0:53:06.800] developing better data processing techniques, and creating high-quality data sets that allow
+- [0:53:10.639] superior models to be trained with fewer resources. For companies adopting foundation models rather
+- [0:53:15.360] than building them from scratch, the data-centric approach offers the greatest competitive advantage.
+- [0:53:19.679] The type of data you need depends on your adaptation task. For self-supervised fine-tuning,
+- [0:53:24.159] you need sequences of relevant domain data. For instruction-fintuning, you need data in instruction,
+- [0:53:29.119] response format. For preference-fintuning, you need instruction, winning response, losing response
+- [0:53:33.599] format. For reward modeling, you need either preference data, or examples with explicit scores.
+- [0:53:38.079] Your training data should exhibit the behaviors you want your model to learn. This can be
+- [0:53:41.519] particularly challenging for complex behaviors like chain-of-thought reasoning, or tool-use,
+- [0:53:45.199] in-ege-end-tick workflows. When developing conversational applications, you need to consider whether
+- [0:53:49.440] you require single-turned-data, multi-turned-data, or both. Single-turned-data helps train a model
+- [0:53:53.760] to respond to individual instructions while multi-turned-data teaches the model how to solve tasks through
+- [0:53:58.239] dialogue, like clarifying user intent before addressing the task or incorporating corrections.
+- [0:54:02.880] A small amount of high-quality data can outperform a large amount of noisy data. A principle confirmed
+- [0:54:07.599] by teams working on models like Lama 3. They found that human-generated data is often prone to
+- [0:54:11.840] errors in inconsistencies, particularly for nuanced policies, leading them to develop AI-assisted
+- [0:54:17.119] annotation tools to ensure high-quality, which is interesting to me. But what makes data high-quality?
+- [0:54:21.360] There are several factors to consider. First, relevance. The examples should be relevant to your target
+- [0:54:26.159] task. Legal texts from the 19th century might not be relevant for answering contemporary
+- [0:54:30.320] legal questions. You'll also need alignment with task requirements. If your task focuses on
+- [0:54:34.960] factual consistency, annotations need to be factually correct. If it demands creativity,
+- [0:54:39.360] annotations should be creative. We also need to think about consistency.
+- [0:54:42.800] annotations should be consistent across examples and annotators. They need to be correctly
+- [0:54:46.800] formatted, so data should adhere to the expected structure. They need to be sufficiently unique.
+- [0:54:51.280] You want minimal duplicates in your data set. They need to be compliant and follow internal and external
+- [0:54:55.920] policies. And you need coverage. Your training data needs to cover the range of possible
+- [0:55:00.159] problems you want to solve, requiring sufficient diversity. Missing coverage in important areas will
+- [0:55:04.639] result in poor performance for those cases, no matter how much data you have overall. But how much
+- [0:55:08.559] data do you need? Asking how much data you need is kind of like asking how much money you need.
+- [0:55:12.880] Beans are very widely depending on your situation. Several factors influence data requirements. So if
+- [0:55:17.840] you're fine tuning, then the fine tuning technique matters. Full fine tuning typically requires orders
+- [0:55:22.559] of magnitude more data than parameter efficient methods like Laura. With tens of thousands to millions
+- [0:55:27.440] of examples, full fine tuning might be appropriate. With just hundreds to a few thousand examples,
+- [0:55:32.800] PFT methods will likely work better. It also depends on your task complexity. A simple sentiment
+- [0:55:37.679] classification task requires much less data than complex question answering about financial
+- [0:55:42.079] filing for example. The base model performance also makes a difference, so the closer the base model
+- [0:55:46.480] is to your desired performance, the fewer examples you'll need. Larger and more capable base models
+- [0:55:50.639] generally require fewer examples to fine tune effectively. Open AI's fine tuning guide demonstrates
+- [0:55:55.119] that with fewer examples around 100, more advanced models give better fine tuning results.
+- [0:56:00.320] However, after fine tuning on a large data set around 550,000 examples, all models performed
+- [0:56:06.639] similarly, regardless of their initial capabilities. So in short, with limited data, use PFT methods
+- [0:56:12.079] on more advanced models. With abundant data, full fine tuning on smaller models becomes viable.
+- [0:56:16.880] Before investing in a large data set, start with a small, well crafted set of around 50 examples
+- [0:56:22.079] to see a fine tuning improves your model. If you see clear improvements, more data will likely
+- [0:56:25.760] help further. If you see no improvement with a small data set, a larger one rarely solves the problem.
+- [0:56:30.400] Though be careful to rule out other issues like poor hyper parameters or data quality first. In most
+- [0:56:34.880] cases, you should see improvements after fine tuning with just 50 to 100 examples. You can also reduce
+- [0:56:40.320] the amount of high quality data you need by first fine tuning on more accessible data. So one path
+- [0:56:44.719] might be self supervised to supervise. First fine tune on domain specific documents, then on targeted
+- [0:56:50.000] question answer pairs. Or less relevant to more relevant data. First fine tune on adjacent domains
+- [0:56:55.440] with abundant data, then on your specific domain. Or synthetic to real data. First fine tune on
+- [0:57:00.320] AI generated examples, then on limited real examples. Experimenting with subsets of your current
+- [0:57:05.280] data set, so maybe 25, 50, and 100% can help estimate how much more data you'll need. A steep performance
+- [0:57:11.440] gain with increasing data set size suggests significant improvement from doubling your data,
+- [0:57:15.840] a plateau indicates diminishing returns. So let's say you need more data. How can you get it if you don't
+- [0:57:20.480] omine for your use case? If possible, you'll want to create a data flywheel that leverages user
+- [0:57:24.960] interactions to continually improve your product. This offers a significant competitive advantage.
+- [0:57:30.000] Or you could also just check available data sets. You can often mix and match different sources,
+- [0:57:34.480] though all data must be thoroughly verified for quality and appropriate licensing. When annotating
+- [0:57:38.960] your own data, the challenge isn't just the annotation process, but creating clear guidelines.
+- [0:57:43.599] You need to explicitly define what makes a good response. Can a response be correct but unhelpful?
+- [0:57:48.480] What distinguishes a score of three versus four? These guidelines are crucial both for
+- [0:57:52.800] human and AI powered annotations. Trust me, one of the hardest machine learning problems I've ever
+- [0:57:57.679] had dissolved was an issue with human laborers. Data augmentation creates new examples from existing
+- [0:58:02.480] data, which is another option. So you could do things like flipping an image to create a new variant.
+- [0:58:06.639] Or you could use data synthesis. This generates artificial data that mimics real data properties,
+- [0:58:11.679] like simulating mouse movements on a web page. The key difference between augmented data and synthetic
+- [0:58:16.719] data is that augmented data is derived from real data, while synthetic data is created from scratch.
+- [0:58:21.920] Data synthesis, therefore, is particularly valuable for addressing privacy concerns when working with
+- [0:58:26.239] sensitive information. Together, some combination of these techniques should allow you to produce
+- [0:58:30.639] data at scale, increase coverage across your problem space, and possibly improve quality with AI
+- [0:58:35.519] generated data. Since humans aren't always great at creating consistent data. But of course,
+- [0:58:39.599] make sure to measure the quality of your AI generated data just like you would for human generated data.
+- [0:58:43.760] Once you have your data, you need to process it. Data processing can be time-consuming,
+- [0:58:47.840] but it is critical for quality. Here's some best practices. Start with filtering tasks and test
+- [0:58:53.199] scripts before big runs. Avoid changing data in place so you want to make sure to keep the originals.
+- [0:58:58.079] Perform exploratory data analysis on distributions and outliers. Examint inter annotator disagreement
+- [0:59:03.679] and resolve conflicts. Fact check and manually inspect examples. Do you duplicate data to prevent
+- [0:59:09.039] over representation? Clean formatting tokens like HTML and Markdown, which can improve performance and
+- [0:59:14.480] reduce input size. Remove non-compliant data so anything like PII, toxic material, or copyrighted
+- [0:59:19.760] content. Filter out low quality data identified during verification. If you have more data,
+- [0:59:24.320] then your compute budget allows. Use active learning to select the most helpful examples. And ensure
+- [0:59:28.880] data is in the right format for your model, using the appropriate tokenizer and chat template. While
+- [0:59:33.440] all these steps require a lot of effort, there is central for creating data sets that will help your
+- [0:59:37.760] model to shine. In the competitive landscape of AI applications, well-engineered data sets often
+- [0:59:42.480] make the difference between mediocre and exceptional performance. Now let's dive into one of the most
+- [0:59:46.719] practical aspects of AI engineering. Inference optimization. After all, a model's real world usefulness
+- [0:59:52.400] boils down to two crucial factors, how much it costs to run and how quickly it responds. These characteristics,
+- [0:59:58.159] inference cost and latency ultimately determine which applications can practically use AI and at what scale.
+- [1:00:03.440] Let's start by understanding what we mean by inference in the AI lifecycle. There are two distinct
+- [1:00:08.079] phases in an AI models journey, training and inference. Training builds the model while inference uses
+- [1:00:13.280] the model to compute outputs for given inputs. In a production environment, the component responsible for
+- [1:00:18.079] running the model inference is called an inference server. This server hosts available models,
+- [1:00:22.239] allocates hardware resources to execute them, and returns responses to users. The inference server is
+- [1:00:27.840] part of a broader inference service that also handles receiving, routing, and pre-processing requests.
+- [1:00:32.880] So what does this mean for you? Well, if you're using a model API like those from OpenAI or Google,
+- [1:00:37.760] you're essentially outsourcing this inference service. But if you decide to host models yourself,
+- [1:00:42.000] you'll need to build, optimize, and maintain your own inference infrastructure. To optimize inference,
+- [1:00:46.960] we first need to understand what's slowing things down. Generally speaking, AI workloads face two types of
+- [1:00:52.320] bottlenecks. Compute bound bottlenecks occur when the limiting factor is the computational
+- [1:00:56.800] power available. Tasks requiring intensive calculations like image generation are typically compute
+- [1:01:02.400] bound. Memory bandwidth bound bottlenecks occur when the limiting factor is how quickly data can move
+- [1:01:06.880] between memory and processors. Autoregressive language model inferences typically memory bandwidth bound.
+- [1:01:12.079] Profiling tools like Nvidia Insight can help determine which bottleneck effects are workload through
+- [1:01:16.239] something called a roofline chart. What's important to understand is that different optimization
+- [1:01:20.079] techniques address different bottlenecks. A compute bound workload might benefit from more powerful
+- [1:01:24.639] chips or distributing work across multiple chips. Meanwhile, a memory bandwidth bound workload might
+- [1:01:29.119] see better results from chips with higher memory bandwidth. Now that we understand bottlenecks,
+- [1:01:32.880] let's look at how inference is actually served. Many providers often two distinct types of inference
+- [1:01:37.440] APIs, each optimized for different use cases. Online APIs optimize for latency,
+- [1:01:42.320] processing requests as soon as they arrive. Chatbot typically use online APIs since users expect quick
+- [1:01:48.480] batch APIs on the other hand optimize for cost, processing multiple requests together more
+- [1:01:52.719] efficiently, both higher latency. Applications with outstrict response time requirements like
+- [1:01:57.280] periodic report generation or synthetic data creation can benefit from batch processing. The key is
+- [1:02:02.159] matching your inference type to your applications needs. So now, how do we measure if our inference is
+- [1:02:06.480] performing well? That brings us to our next section. Here are some key inference performance metrics.
+- [1:02:11.760] To optimize effectively, we need to know what we're measuring. Several metrics help us evaluate
+- [1:02:15.920] inference performance. The first and perhaps most notable metric is latency. The time from
+- [1:02:20.400] when users send a query until they receive a complete response. For autoregressive models like LLMs,
+- [1:02:25.199] latency breaks down into two components. So we have the time to first token, TTFT, which is how
+- [1:02:31.119] quickly the first token is generated after receiving a query. And then we have time per output token,
+- [1:02:36.239] TPOT, TPA. How long it takes to generate each subsequent token? The total latency then equals TTFT plus
+- [1:02:44.159] TPOT times the number of output tokens. Some teams also measure time to publish TTP. Because the first
+- [1:02:50.239] generated token isn't always immediately shown to users, especially when the model first generates a plan
+- [1:02:54.880] or uses chain of thought reasoning. One important note about latency. Since it varies across requests,
+- [1:02:59.840] looking at percentiles gives you much more meaningful information than simple averages. Beyond latency,
+- [1:03:04.880] we also care about throughput, which is the number of output tokens per second and inference service
+- [1:03:09.599] can generate across all requests. Higher throughput typically means lower cost, which is why
+- [1:03:13.920] optimizing for it matters for production systems. It's worth mentioning that most AI applications face a
+- [1:03:18.320] fundamental latency throughput trade-off. Techniques like batching can improve throughput, but may increase
+- [1:03:22.719] latency for individual requests. Your optimization strategy needs to balance these competing priorities
+- [1:03:27.119] based on your specific application needs. Finally, utilization metrics tell us how efficiently we're
+- [1:03:31.840] using our resources. We have model flops per second utilization, which is the ratio of observed
+- [1:03:36.559] throughput relative to the theoretical maximum at peak computing power, model bandwidth utilization,
+- [1:03:41.599] which measures the percentage of available memory bandwidth being used. Now that we know it to measure,
+- [1:03:45.679] let's look at the hardware that powers inference. At the heart of inference performance is specialized
+- [1:03:50.079] hardware, an accelerator is a chip designed to speed up specific types of computation. For AI workloads,
+- [1:03:55.679] the dominant accelerators are GPUs. Those specialized AI chips are growing in popularity. You might be
+- [1:04:00.639] wondering about the difference between CPUs and GPUs. It comes down to their architecture. CPUs
+- [1:04:05.360] have a few powerful cores, typically up to 64 for high-end machines, which are optimized for general
+- [1:04:10.320] purpose computing. GPUs on the other hand have thousands of smaller cores optimized for parallel
+- [1:04:15.440] processing. This makes them ideal for matrix multiplication operations that dominate ML workloads.
+- [1:04:20.559] Interestingly, training and inference have different hardware requirements. Training demands more
+- [1:04:24.880] memory due to backprop and is generally more difficult to perform in lower precision.
+- [1:04:29.119] Inference often emphasizes latency over throughputs since users are typically waiting for responses.
+- [1:04:33.519] When evaluating hardware for inference, consider three key questions. Can it run your workloads?
+- [1:04:38.400] How long does it take to do so and how much does it cost? The specific hardware specifications
+- [1:04:42.559] to focus on include flops, computing power, memory size, and memory bandwidth. For compute bound
+- [1:04:48.000] workloads, prioritize chips with more flops, for memory bound workloads focus on higher bandwidth and more
+- [1:04:52.800] memory. With the hardware foundations covered, let's move on to techniques for optimizing at the
+- [1:04:56.800] model level. Now we're getting into the real tactics for speeding up inference. Let's start with
+- [1:05:00.800] model level optimizations. Techniques that make the models themselves more efficient. Model compression reduces
+- [1:05:06.239] a model's size. Potentially making it faster. There are several approaches here. Quantization,
+- [1:05:10.880] which we already discussed, reduces numerical precision. Pruning removes less important parameters or
+- [1:05:16.079] sets in the 0. And distillation, which we also already discussed, trains a smaller model to
+- [1:05:20.559] mimic a larger one. Among these options, we only quantization is by far the most popular because it's
+- [1:05:25.199] relatively easy to implement, works well for many models out of the box, and delivers significant
+- [1:05:29.840] benefits without that much effort. Another challenge specific to language models is their auto-regressive
+- [1:05:33.920] nature. They generate text 1 token at a time, which creates a sequential bottleneck. Several techniques
+- [1:05:38.880] address this limitation. Speculative decoding uses a faster, but less powerful model to generate
+- [1:05:43.679] candidate tokens, which are then verified by the target model. It's like having an assistant draft
+- [1:05:48.480] responses and a manager quickly review and approve. Inference with reference, copies tokens
+- [1:05:52.800] from the input when appropriate. For example, when answering questions about a document.
+- [1:05:56.480] Rather than generating them from scratch. This can significantly speed up responses for
+- [1:06:00.480] document-based queries. Parallel decoding aims to generate multiple token simultaneously,
+- [1:06:05.360] breaking this sequential constraint. Additionally, attention mechanism optimization improves the
+- [1:06:09.840] efficiency of transformer models' attention calculations, which can be particularly memory intensive.
+- [1:06:14.719] At an even lower level, kernels and compilers optimize how models run on specific hardware.
+- [1:06:19.760] Kernels are specialized code optimized for hardware accelerators. Common optimization techniques
+- [1:06:24.800] include vectorization, parallelization, loop tiling, and operator fusion. Compilers bridge
+- [1:06:30.159] machine learning models and hardware, converting model operations into optimized code for specific
+- [1:06:34.719] accelerators. Optimization doesn't stop at the model level. Let's look at how we can optimize the
+- [1:06:39.280] entire inference service. We can achieve significant performance gains by efficiently managing resources
+- [1:06:44.480] across an entire inference service. One of the most powerful techniques is batching, which combines
+- [1:06:48.800] multiple requests process together. Batching can be implemented in different ways. So we have static batching,
+- [1:06:54.239] which groups of fixed number of inputs, but all requests must wait until the batch is full. This is
+- [1:06:59.199] simple but can lead to inconsistent latency. Dynamic batching sets a maximum time window,
+- [1:07:03.760] processing the batch when either it's full or the time limit has been reached. This provides more
+- [1:07:08.400] consistently in-seaguerenties. Finally, we have continuous batching, which allows responses to be
+- [1:07:13.280] returned as soon as they're completed, with new requests added to maintain batch size. This provides
+- [1:07:17.840] the best user experience but is more complex to implement. Another powerful technique is decoupled
+- [1:07:22.639] pre-fill and decode, which separates these two phases of LLM inference. Since they have different
+- [1:07:27.679] computational needs handling them separately prevents resource competition and improves overall
+- [1:07:31.679] efficiency. For applications with repetitive patterns, prompt caching stores overlapping text segments,
+- [1:07:36.960] like system prompts or reference documents, to avoid reprocessing them with each query. This is
+- [1:07:41.840] particularly valuable for applications with long conversations or multiple queries about the same
+- [1:07:46.079] document. As models grow larger, a single machine may not be sufficient. This is where parallelism comes in,
+- [1:07:51.679] distributing work across multiple machines. Replica parallelism creates multiple copies of the model,
+- [1:07:56.559] each handling different requests. This is the simplest approach and works well for high-through
+- [1:08:00.239] prints in areas. Model parallelism splits a single model across machines, either through tensor parallelism,
+- [1:08:05.920] which is breaking operations into smaller pieces. Pipeline parallelism, dividing the model into
+- [1:08:10.559] sequential stages, context parallelism, splitting input sequences across devices, or sequence parallelism,
+- [1:08:17.039] splitting different operations across machines. So what technique should you implement? We just talked about
+- [1:08:21.600] a lot. The optimal combination depends on your specific workloads and performance requirements. For
+- [1:08:26.000] applications prioritizing low latency, replica parallelism may be best despite higher costs. For most
+- [1:08:31.680] use cases, the most impactful techniques are typically quantization, tensor parallelism, replica parallelism,
+- [1:08:37.520] and attention mechanism optimization. By thoughtfully applying these techniques, you can dramatically
+- [1:08:42.159] improve both the speed and cost effectiveness of your AI applications, making them more responsive to
+- [1:08:46.399] users while keeping your infrastructure cost manageable. In our next-in-final section, we'll see how all
+- [1:08:50.960] these components come together in a complete AI application architecture, and how user feedback creates a
+- [1:08:56.239] virtuous cycle of continuous improvement. Now that we've explored all the individual components of AI
+- [1:09:00.880] engineering, it's time to pull everything together. Let's see how these pieces fit into a complete
+- [1:09:05.039] architecture, and how user feedback creates a powerful loop that helps these systems improve over time.
+- [1:09:09.279] The simplest AI application architecture looks like this. Your application receives a query,
+- [1:09:13.520] sends it to a model, either through a third-party API or self-hosted model, and returns their response to
+- [1:09:18.399] the user. No bells, no whistles, just direct input, and output. But real-world applications rarely
+- [1:09:23.520] stay this simple. Let's walk through how these architecture typically evolve as your needs grow
+- [1:09:27.840] more sophisticated. The first enhancement most applications need is better context construction,
+- [1:09:32.800] giving the model access to information required to process useful outputs. This is essentially
+- [1:09:37.520] feature engineering for foundation models. So you might add, RAD systems to search and retrieve information
+- [1:09:42.880] from your knowledge base, agent capabilities to gather information from external tools, document uploading
+- [1:09:48.000] functionality to analyze specific content, or more. These additions ensure the model has the necessary
+- [1:09:52.880] context to provide accurate relevant responses. Step 2. Add Guard Rails for Protection. As your
+- [1:09:58.319] application grows in capability, you'll need Guard Rails to protect both your system and
+- [1:10:02.000] your users. Input Guard Rails protect against leaking private information to external APIs, and malicious
+- [1:10:07.520] prompts that could compromise your system. Output Guard Rails catch different types of failures. Quality failures
+- [1:10:12.720] like empty responses, incorrect formatting, or factually incorrect content, or security failures,
+- [1:10:17.600] like toxic content, PII exposure, or unauthorized actions. The key, again, is balancing protection with
+- [1:10:23.279] user experience. Overly restrictive Guard Rails create frustrating experiences while inadequate ones
+- [1:10:28.079] could leave you vulnerable. Stage 3. Implement model routing and gateways. As your application
+- [1:10:33.039] matures, you may discover that one model doesn't fit all your needs. Different queries require different
+- [1:10:38.000] approaches, and this is where model routing comes into play. A model router typically includes an
+- [1:10:42.239] intent classifier that predicts what the user is trying to do, and then directs the query to the appropriate
+- [1:10:47.199] model or pipeline. These routers should be fast and inexpensive so you can use multiple of them
+- [1:10:51.520] without adding significant latency or cost. Along with routing, you'll likely need a model gateway.
+- [1:10:56.720] This is an intermediate layer that provides a unified interface to different models,
+- [1:11:01.039] both self-hosted and commercial, access control, and cost management, fallback policies to handle
+- [1:11:06.000] rate limits or API failures, and load balancing, logging, and analytics. The gateway approach makes
+- [1:11:11.520] your code based much more maintainable. If a model API changes, you only need to update the gateway,
+- [1:11:16.399] not every application that uses it. It's a classic example of separations of concerns and software
+- [1:11:21.920] Next stage 4, Optimize with Caching. As your user-based grows, performance and cost optimization
+- [1:11:27.119] become increasingly important. This is where caching enters the picture. Inference caching includes
+- [1:11:31.439] techniques like KV caching to optimize the attention mechanism, and prompt caching to avoid reprocessing
+- [1:11:36.880] identical prompt components. Caching is particularly valuable for multi-step processes like chain of
+- [1:11:41.520] thought reasoning or queries requiring time-consuming actions like retrieval or web searches. For
+- [1:11:46.000] implementation, your options range from in-memory storage, which is fast but has limited capacity
+- [1:11:50.960] to databases like Postgres SQL and Redis. You'll also need an eviction policy like
+- [1:11:55.439] least recently used or at least frequently used to manage cached sizes as you scale. Stage 5, add complex
+- [1:12:01.439] logic and write actions. This is the most sophisticated AI applications go beyond simple question answering.
+- [1:12:07.199] To incorporate complex, multi-step reasoning flows, agentic patterns with loops and decision-making,
+- [1:12:12.800] and write actions that make changes to the environment. Write actions like sending emails,
+- [1:12:17.039] placing orders or initiating transfers, dramatically increase your systems capabilities,
+- [1:12:21.760] but also introduce significant risks. They should be implemented with sufficient caution and appropriate
+- [1:12:26.319] safeguards. As your architecture grows in complexity, keeping track of everything becomes increasingly
+- [1:12:30.800] challenging. This is where monitoring and observability become critical. While related,
+- [1:12:35.039] they serve slightly different purposes. Monitoring tracks external outputs to detect when something
+- [1:12:39.520] goes wrong, but doesn't necessarily help identify the cause. It's like knowing your car broke down
+- [1:12:44.239] but not why. Observability on the other hand ensures that sufficient information about your
+- [1:12:48.399] systems internal state is collected, so that when something goes wrong, you can diagnose the issue
+- [1:12:52.479] without deploying new code. It's like having sensors throughout your car that can pinpoint exactly what failed.
+- [1:12:56.800] There are three key metrics that can help you evaluate your observability. MTTD, or mean time to detection,
+- [1:13:03.119] how long it takes to detect an issue. MTTR mean time to response, and CFR, change failure rate,
+- [1:13:09.520] which is the percentage of the payments that result in failures. Each component in your pipeline should
+- [1:13:13.520] have its own metrics, and you should understand how these metrics correlate to your businesses
+- [1:13:17.119] in North Star metrics. Remember the golden rule of observability. Just blog everything. When metrics
+- [1:13:21.920] indicate a problem, detailed blogs help you identify exactly what went wrong. As your application evolves to
+- [1:13:27.039] include multiple models, data sources, and tools, managing these interactions can become increasingly
+- [1:13:31.840] complex. This is where an orchestrator becomes valuable, helping you specify how these components work together.
+- [1:13:37.039] AI orchestrator tools like Langchane, Lama Index, Flowwise, Langflow, and Haystack help manage these
+- [1:13:42.800] complex pipelines. However, it's often wise to start building your application without an orchestrator first,
+- [1:13:48.560] to understand the quorum mechanics before adding another layer of abstraction. Now let's talk about what
+- [1:13:53.119] might be the most valuable asset in AI engineering. User feedback. This feedback provides proprietary
+- [1:13:58.319] data that can give you a genuine competitive advantage. While everyone can access the same foundation models,
+- [1:14:03.359] only you have access to how your specific users interact with your system. User feedback comes in two main
+- [1:14:08.960] forms. Explosive feedback is directly provided by users. This is things like thumbs up and down
+- [1:14:13.359] rating, star ratings, or written comments. In-place at feedback is inferred from user behavior. This could
+- [1:14:18.560] be things like early termination, error corrections, or question clarifications, complaint messages,
+- [1:14:24.159] sentiment, frequency of regenerating responses, and conversation length. When designing your feedback
+- [1:14:29.359] systems, consider carefully when to request input. You could ask for feedback at the beginning of the
+- [1:14:33.760] experience, like asking for skill level, in a language learning app, or when something unexpected
+- [1:14:38.079] happens, like slow response time, or at natural decision points, like offering between two alternative
+- [1:14:42.880] responses. The goal is to gather valuable insights without disrupting the user experience. Remember that
+- [1:14:48.159] every request for feedback creates friction, so use these opportunities wisely. While we've covered
+- [1:14:52.560] each component separately, I'm a sure AI application integrates all these elements into a cohesive
+- [1:14:57.520] system. The architecture you choose should align with your specific use case, technical constraints,
+- [1:15:02.239] and business objectives. One important thing to remember is that complexity should serve a purpose,
+- [1:15:06.479] only add components itself, real problems for your application. Sometimes a simpler architecture with
+- [1:15:11.199] fewer moving parts is more reliable and easier to maintain than a complex one with every billing whistle.
+- [1:15:16.239] The field of AI engineering is still rapidly evolving with new techniques and best practices emerging
+- [1:15:21.359] daily. The most successful AI engineers maintain flexibility in their architecture, allowing them to
+- [1:15:26.479] incorporate new advances while providing stable, reliable experiences to their users. And that
+- [1:15:31.039] ropes up our journey through AI engineering. We've covered an incredible amount of ground from
+- [1:15:35.039] understanding foundation models and evaluation to mastering prompt engineering, rag, agents,
+- [1:15:39.680] fine-tuning, data set engineering, and optimization techniques. Of course, this was a super high level
+- [1:15:44.960] overview of a very detailed book, so I really recommend using this as a starting point to check out the
+- [1:15:49.600] book on your own. I had a great time putting this together and I plan to do more videos covering technical
+- [1:15:53.760] content like this in the future. So let me know in the comments which book you want me to
+- [1:15:57.039] summarize next and don't forget to subscribe so you don't miss it when the next one comes out.
+- [1:16:00.640] Thanks so much for watching and I'll see you next time.

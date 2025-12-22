@@ -5,7 +5,6 @@
 .clinerules/
 .idea/
 .vscode/
-README.md
 *.sh
 transcribe_dir.py
 
