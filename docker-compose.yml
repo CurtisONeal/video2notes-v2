@@ -1,15 +1,24 @@
 services:
   app:
     build: .
-    # The command to run when the container starts.
-    # You can override this from the command line.
-    # Example: docker-compose run --rm app "https://www.youtube.com/watch?v=tPEE9ZwTmy0"
+    # This service uses the default ENTRYPOINT from the Dockerfile
+    # which is: ["python", "-m", "video2mdnotes.main"]
     command: ["--help"]
     volumes:
-      # Mount the output directory to save results locally
       - ./previous_run_results:/app/previous_run_results
-      # Mount a local directory to cache the Whisper models
       - ./model_cache:/root/.cache
     env_file:
-      # Pass environment variables from your .env file
+      - .env
+
+  api:
+    build: .
+    # We override the default entrypoint from the Dockerfile
+    # to run the uvicorn server instead of the CLI app.
+    entrypoint: ["uvicorn", "video2mdnotes.api:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./previous_run_results:/app/previous_run_results
+      - ./model_cache:/root/.cache
+    env_file:
       - .env
