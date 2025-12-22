@@ -19,7 +19,7 @@ The goal is to replace the current mix of Bash and Python scripts with a unified
     *   Use uv for virtual environment and dependency locking.
     *   Implement pydantic-settings for typed configuration (loading .env).
 *   **Dependencies:**
-    *   **Prod:** faster-whisper, yt-dlp, rich, pydantic-settings, litellm, typer.
+    *   **Prod:** faster-whisper, yt-dlp, rich, pydantic-settings, litellm, typer, loguru.
     *   **Dev:** pytest, ruff, mypy.
 *   **Plan:**
     1.  Create pyproject.toml with all dependencies.
@@ -101,7 +101,8 @@ The goal is to replace the current mix of Bash and Python scripts with a unified
     2.  Implement the "Project-Based Archiving" logic (create folder, move files).
     3.  Create tests/e2e/test_full_pipeline.py for the end-to-end test.
 *   **Result:**
-    *   (Pending)
+    *   [COMPLETE] main.py implemented with loguru logging.
+    *   [COMPLETE] E2E test passed (13/13).
 
 ### 6. Dockerization (Local)
 *   **Goal:** Run the CLI inside a container.
@@ -113,6 +114,15 @@ The goal is to replace the current mix of Bash and Python scripts with a unified
     2.  Write docker-compose.yml.
 *   **Result:**
     *   (Pending)
+
+---
+
+## Side Quests & Errors
+
+### Typer Single-Command Behavior
+*   **Issue:** When a `typer` application has only one command (e.g., just `process`), Typer treats that command as the "main" entry point.
+*   **Symptom:** Invoking `runner.invoke(app, ["process", url])` fails with exit code 2 (Usage Error) because Typer expects `runner.invoke(app, [url])`.
+*   **Resolution:** Adjusted the test invocation to match Typer's single-command behavior. If we add more commands later, the invocation style in tests will need to revert to including the command name.
 
 ---
 
