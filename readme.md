@@ -1,255 +1,170 @@
-# Fast video notetaker v1
+# Fast Video Notetaker v2
 
-The point of this project is to have an initial python script that when provided the url of a video or video playslist that is shown in the current browser it will download the best version of the video's audio transcript and then use whiper to create text files, then use a prompt to summarize those using a local llm, or a foundational model API key.
+The point of this project is to have a robust Python application that, when provided the URL of a video or video playlist, will download the audio, create a transcript, and use an LLM to generate a structured summary.
 
-# TODO 
-1. Locate the original partial scripts [DONE]
-2. Get it running 
-3. Refactor the folder structure to modern python
-
-## For To Do Contexts See:
-0. /curtisoneal@Curtiss-MBP video2mdnotes  <-- symbolic link?
-1. /Users/curtisoneal/video2mdnotes/readme.md
-2. /Users/curtisoneal/video2mdnotes/results/vertex_intro_class/vertex_intro_url.txt
-3. /Users/curtisoneal/video2mdnotes/yt-dlp.textClipping
-4. /Users/curtisoneal/quick_tests/Video_ripper_pland_chatgpt.md
-5. /usr/local/Cellar/yt-dlp
+This project has been refactored from a collection of scripts into a modern, containerized Python application.
 
 ## Project Structure
+The project now follows a standard Python package structure:
 ```
-langchain_rag_pilot/
- |----- .benchmarks            # ??
- |----- .venv/                 # Virtual environment directory
- |----- human_read_docs/        # Documentation
-|    |----- archived_from_ai/   # stuff away from the  AI 
-|    |-----.gitkeep    # Required for empty directories
-|    |----- descriptive_video_transcribing_fast_iteration_loop.md
-|    |----- review_yt-dlp_cli_commands_doc.md
-|   +---- video_transcript_ripper_plan-chatgpt5_project_copy.md
- |----- documents/             # Files to be processed
-|    |-----.gitkeep            # Required for empty directories
-|    |----- excel/
-|    |----- html_docs/
-|    |----- images/             # png, jpg
-|    |----- yellow-up_in_rag/
-|    +---- 7 other pdfs
- |----- langchain_rag_pilot/     # Main package directory
-|    |----- document_loaders.py  # Document loading and processing
-|    |----- document_manager_interaction_tool.py  # Document loading and processing
-|    |----- main.py              # Core functionality and context management
-|    +---- __init__.py
- |----- tests/                   # Test suite
-|    |----- fixtures/            # Test files
-|    |----- conftest.py
-|    |----- generate_fixtures.py
-|    |----- test_document_loader.py
-|    |----- test_main.py 
-|    |----- test_main_copy.py
-|    |----- test_ocr.py
-|    +---- test_sample_loader.py
- |----- .coverage     
- |----- .env               # Your actual Environment variables - don't commit
- |----- .env.example             # Environment template variables
- |----- .gitignore               # Files to ignore when committing
- |----- .python-version          # Python version for Hatchling
- |----- Dockerfile               # TBD Container configuration
- |----- pyproject.toml           # Modern Python packaging with Hatchling
- |----- README.md                # Overview of the project
- |----- sources.db               # SQLite database for document tracking / management
- +---- uv.lock                  # uv versions locked file
+video2mdnotes/
+├── .clinerules/         # Internal documentation and project plans
+├── .dockerignore        # Files to ignore for Docker builds
+├── .env.example         # Template for environment variables
+├── .gitignore           # Files ignored by Git
+├── docker-compose.yml   # Defines the application service for Docker
+├── Dockerfile           # Instructions to build the application container
+├── human_readable_documentation/ # User guides and project documentation
+├── legacy_scripts/      # The original, now-obsolete scripts
+├── previous_run_results/ # Default output directory for processed videos
+├── pyproject.toml       # Project definition, dependencies, and tools
+├── src/                 # Main application source code
+│   └── video2mdnotes/
+├── summarize_prompt.txt # The prompt used for the LLM summarizer
+└── tests/               # Automated tests for the application
 ```
+
+## User Guide
+See /human_readable_documentation/Current_User_Guide.md for a short user friendly version of the commands and usage.
 
 ### Package Management
-
 This project uses modern Python packaging tools:
-- **UV**: Fast, reliable package installer
-- **Hatchling**: Build backend for modern Python packaging
-- **pyproject.toml**: Single source of truth for project configuration
-
-Key benefits:
-- Faster package installation with UV
-- Reproducible builds with Hatchling
-- Clean dependency management
-- Better Docker support
-- Copes with a package's dependencies changing over time and a conflict in langchain packages
+- **uv**: A fast, reliable package installer and virtual environment manager.
+- **hatchling**: The build backend used for packaging the application.
+- **pyproject.toml**: The single configuration file for defining the project and its dependencies.
 
 ## Project Setup
 
 ### Prerequisites
-- Python 3.11.7 (required)
-- UV package manager (for fast, reliable package installation)
-- OpenAI API key
-- Homebrew (for Mac users)
-- langchain_community’s unstructured loader calls LibreOffice to convert legacy .doc/.ppt to .docx/.pptx.
-- uv pip install msoffcrypto-tool # import name is 'msoffcrypto' but the package is 'msoffcrypto-tool'
+- **Docker**: Docker Desktop (for Mac/Windows) or Docker Engine (for Linux) must be installed and running.
+- **API Key**: You need an API key from an LLM provider (like OpenAI or Anthropic) to generate summaries.
 
 ### Quick Start
+1.  **Clone the repository:**
+    ```bash
+    git clone <repository-url>
+    cd video2mdnotes
+    ```
 
-### Clone the repository
-```bash 
-git clone <repository-url> 
-cd langchain-rag-pilot
+2.  **Create Environment File:**
+    Copy the `.env.example` file to `.env` and add your API key.
+    ```bash
+    cp .env.example .env
+    # Now, edit .env and add your key:
+    # OPENAI_API_KEY="sk-..."
+    ```
+
+3.  **Build the Docker Container:**
+    This command builds the application image. You only need to run this once, or whenever you change the Python code.
+    ```bash
+    docker compose build
+    ```
+
+## How to Run
+The application is run as a command inside the Docker container.
+
+### Process a Single Video or Playlist
+This is the main command. It will download, transcribe, summarize, and archive the content from the URL.
+```bash
+docker compose run --rm app "YOUR_VIDEO_OR_PLAYLIST_URL"
 ```
 
-### Install Python 3.11.7 if needed (macOS)
-`pyenv local 3.11.7`
-
-# sanity check
-`python --version`          # should report 3.11.7
-`which python`              # should be a pyenv shim, e.g. ~/pyenv/shims/python
-
-### Install system dependencies for PDF processing
-`brew install qpdf`
-
-### Install UV if not already installed
-`curl -LsSf https://astral.sh/uv/install.sh | sh`
-
-### Create a virtual environment with UV (uses Python 3.11.7 from pyproject.toml)
-`uv venv --python 3.11.7`
-
-### Activate virtual environment
-`source .venv/bin/activate # On Windows: .venv\Scripts\activate`
-
-### Install the package in development mode using UV
-`uv pip install -e .`
-
-1. Create .env file
-`echo "OPENAI_API_KEY_PERS_LANGCHAIN=your-api-key" > .env`
-
-2. Create required directories:
-`mkdir -p data/documents chroma_db`
-
-3. To RUN the application:
-`python -m langchain_rag_pilot.main`
-
-## Development Tools
-To install and use the development tools, you'll need to install UV first:
-
-## Install development dependencies
-`uv pip install -e ".[dev]"`
-
-## Run tests
-`pytest tests/ -v` # V is verbose | Q is quiet
-
-## Run linter
-`ruff check .`
-
-## Run type checker
-`mypy langchain_rag_pilot/`
-
-2. Create required directories:
-`mkdir -p data/documents chroma_db`
-
-## Document Management CLI
-The system provides a command-line interface for managing your documents:
-
-1. Query document chunks
-`python -m langchain_rag_pilot.document_manager query --source "path/to/document.pdf"`
-
-2. Delete documents from the database (not the directories) by source
-`python -m langchain_rag_pilot.document_manager delete --source "path/to/document.pdf"`
-
-### The document management system integrates with the Chroma vector store and provides:
-- Efficient document chunking and storage
-- Source-based document tracking
-- Easy document retrieval and deletion
-- Seamless integration with the RAG system
-
-## Running the Application-the Correct way to run the application
-
-`python -m langchain_rag_pilot.main`
-
-# Common errors and their solutions:
-1. Incorrect: python -m langchain_rag_pilot/main.py
-- Error: ModuleNotFoundError: No module named 'langchain_rag_pilot/main'
-- Solution: Remove the .py extension when using -m flag
-
-2. Incorrect: python -u "langchain_rag_pilot/main"
-- Error: ImportError: attempted relative import with no known parent package
-- Solution: Use the module syntax with -m flag to ensure proper package imports
-
-3. If you see "No module named langchain_rag_pilot":
-- Solution: Ensure the package is installed in development mode:
-- pip install -e .
-
-# Note about deprecation warnings:
- - If you see a warning about ConversationBufferMemory, it's normal
- - The system now uses ChatMessageHistory from langchain_core for better memory management
- - This warning doesn't affect functionality but indicates we're using the newer approach
-
-## Personal Environment Dependency conflict
-- Note about the dependency conflict:
-You'll see this warning:
-``` 
-ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-langflow 1.5.0.post1 requires youtube-transcript-api==0.6.3, but you have youtube-transcript-api 1.2.3 which is incompatible.
+### Run with Options
+You can pass CLI options after the URL.
+```bash
+# Don't keep the WAV file in the final archive
+docker compose run --rm app "YOUR_VIDEO_URL" --no-keep-wav
 ```
-- This is because you have langflow installed globally in your pyenv Python (not in this venv). It won't affect your project since the venv is isolated. 
-- If you want to fix it, you can either:
-* Ignore it (recommended - it's in your global environment, not this project)
-* Or uninstall langflow from your global pyenv: `pip uninstall langflow`
-* Your Mac: You are on an Intel-based Mac (x86_64). 
-* The Package: PyTorch (the torch package) stopped releasing pre-built wheels for Intel Macs after version 2.2.x. 
-* The Error: Your project is trying to install torch==2.9.1, which only has wheels for Apple Silicon (arm64) Macs, not your Intel Mac.
 
-## Docker Support
-TBD
+### Get Help
+To see all available commands and options:
+```bash
+docker compose run --rm app --help
+```
 
-### Building the Container
+### Expected Output
+After a successful run, a new directory will be created in `previous_run_results/` containing the final summary, the raw transcript, the original URL, and (optionally) the downloaded audio file.
 
-## Resetting the Database and Vector Store
+## Development
+If you want to modify the code or run tests locally, you'll need a local Python environment.
 
-To clear all indexed documents and sources and start over:
+### Local Setup
+1.  **Install Python**: We recommend Python 3.11.
+2.  **Install uv**:
+    ```bash
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    ```
+3.  **Create Virtual Environment & Install Dependencies**:
+    This command reads the `pyproject.toml` and installs all production and development dependencies.
+    ```bash
+    uv sync --with-dev
+    ```
+4.  **Activate Virtual Environment**:
+    ```bash
+    source .venv/bin/activate
+    ```
 
-# Remove all Chroma vector store data
-`rm -rf chroma_db/* `
+### Development Tools
+Once your local environment is set up, you can use these commands.
 
-# Remove all tracked sources from the database (but keep the DB file)
+**Run Tests:**
+Note:  `uv run pytest` runs all tests, including the end-to-end (E2E) tests.
+Since the E2E tests involve downloading, transcribing, and summarizing real videos (even short ones), they take significantly longer than the unit tests. The playlist test, in particular, processes two videos, so it will take a few minutes.
 
-`sqlite3 sources.db 'DELETE FROM sources;' `
+```bash
+uv run pytest
+```
 
-## (Optional) To completely remove the sources database file:
-` rm sources.db `
+**Run Linter & Formatter:**
+This project uses `ruff` to check for errors and format the code.
 
+```bash
+# Check for errors
+uv run ruff check .
 
-## Interacting with the Sources Database (`sources.db`)
-All commands below assume you are in the project root directory:
+# Automatically fix fixable errors
+uv run ruff check . --fix
 
-`/Users/curtisoneal/Documents/DataScience/github_2025_home/Meetup_Langchain`
+# Format all files
+uv run ruff format .
+```
 
-### List all tracked sources
-`sqlite3 sources.db 'SELECT * FROM sources;' `
- `sqlite3 sources.db 'SELECT COUNT(*) FROM sources;'
-  -59
+# Alternate instructions for Container use with Commandline terminal
+A different workflow, and that requires a slight change in how we think about the container. Instead of running a one-off script, you can use an interactive session inside the container.
 
-### Clear all tracked sources (but keep the database file)
-`sqlite3 sources.db 'DELETE FROM sources;' `
+## Here's how you do it:
+1. Start an Interactive Shell
+You'll tell Docker to start the container and run a shell (/bin/bash) instead of your Python script. The -it flags are crucial:
+• -i (interactive): Keeps STDIN open.
+• -t (tty): Allocates a pseudo-TTY, which gives you a proper terminal interface.
+Command to run:
+Shell Script
+`docker compose run --rm app /bin/bash`
+(Note: We still use --rm so the container is deleted when you exit the shell, keeping things clean).
 
-### Remove the sources database file entirely (start completely fresh)
-` rm sources.db `
+2. What Happens Next
+After running that command, your terminal prompt will change. It will look something like this:
+`root@<container_id>:/app#`
+You are now inside the container. From here, you can run your Python script as many times as you want, just like you would on your local machine, but using the container's environment.
 
-**Note:**
-- You must be in the project root directory (where `sources.db` is located) to run these commands.
-- If you remove `sources.db`, it will be recreated automatically the next time you run the application, but all previous source tracking will be lost.
+3. Running Commands Inside the Container
+Once you have the shell prompt, you can run your script directly:
+```Shell Script
+# Run with a URL
+python -m video2mdnotes.main "https://www.youtube.com/watch?v=tPEE9ZwTmy0"
 
-## Pytest Notes
-`pytest -q`
-pytest --> runs all tests and shows full details
--q --> quiet mode, reducing noise
+# Run with another URL
+python -m video2mdnotes.main "https://www.youtube.com/watch?v=another-video"
 
-What "quiet mode" changes:
-Hides the verbose test discovery
-Hides fixture setup/teardown chatter
-Hides extra headers and plugin information
-Only prints:
-a dot for each passing test
-F or E for failures/errors
-a short summary at the end
+# Shell Script
+ Explore the container's filesystem
+ls -l /app
+```
 
-### Options:
-pytest -v --> verbose mode (shows each test name)
-pytest -vv --> very verbose (shows parametrized test expansions)
-pytest -x --> stop after first failure
-pytest --maxfail=1 --> similar to -x but configurable
-pytest -q --disable-warnings --> quiet + hide warnings
-pytest -q --tb=short --> quiet + short tracebacks
+4. Exiting the Container
+When you are finished, simply type exit and press Enter.
+```Shell Script
+root@<container_id>:/app# exit
+```
+
+This will terminate the shell, and because you used the --rm flag, Docker will automatically delete the container.

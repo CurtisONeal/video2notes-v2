@@ -48,7 +48,8 @@ def test_generate_summary_mocked(mock_transcript_result, mock_prompt_file):
         
         # Verify result structure
         assert isinstance(result, SummaryResult)
-        assert result.summary_text == "# Summary\nThis is a summary."
+        assert "# Summary\nThis is a summary." in result.summary_text
+        assert "## Transcript\nThis is a test transcript." in result.summary_text
         assert result.model_name == settings.llm_model
         
         # Verify the LLM was called with correct arguments

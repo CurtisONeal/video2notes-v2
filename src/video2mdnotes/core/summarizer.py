@@ -21,12 +21,13 @@ class SummaryResult(BaseModel):
 def generate_summary(transcript: TranscriptResult) -> SummaryResult:
     """
     Generates a summary for a given transcript using an LLM.
+    Appends the full raw transcript to the end of the summary.
 
     Args:
         transcript: The TranscriptResult object containing the text to summarize.
 
     Returns:
-        A SummaryResult object containing the summary.
+        A SummaryResult object containing the summary + transcript.
 
     Raises:
         FileNotFoundError: If the prompt template file is not found.
@@ -54,20 +55,23 @@ def generate_summary(transcript: TranscriptResult) -> SummaryResult:
         )
         
         # Extract the content from the response
-        summary_text = response.choices[0].message.content
+        llm_output = response.choices[0].message.content
         
-        if not summary_text:
+        if not llm_output:
             raise ValueError("LLM returned an empty summary.")
+
+        # Append the full transcript to the summary
+        # We use the raw full_text (no timestamps) as per requirements
+        final_summary_text = f"{llm_output}\n\n## Transcript\n{transcript.full_text}"
 
     except Exception as e:
         # Re-raise to be handled by the orchestrator
-        # You could add more specific error handling here if needed
         print(f"Error during LLM call: {e}")
         raise
 
     return SummaryResult(
         source_file=transcript.source_file,
         model_name=settings.llm_model,
-        summary_text=summary_text,
+        summary_text=final_summary_text,
         generated_at=dt.datetime.now()
     )
