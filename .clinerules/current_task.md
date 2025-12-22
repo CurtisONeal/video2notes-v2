@@ -81,10 +81,13 @@ The goal is to replace the current mix of Bash and Python scripts with a unified
         *   Construct prompt using summarize_prompt.txt.
         *   Call LLM and save result.
 *   **Plan:**
-    1.  Implement summarizer.py using litellm.
-    2.  Ensure prompt template is loaded from config/file.
+    1.  Implement src/video2mdnotes/core/summarizer.py using litellm.
+    2.  Implement SummaryResult Pydantic model.
+    3.  Implement generate_summary function.
+    4.  Create tests/test_summarizer.py with mocked unit tests and integration tests.
 *   **Result:**
-    *   (Pending)
+    *   [COMPLETE] summarizer.py implemented.
+    *   [COMPLETE] Tests passed (12/12).
 
 ### 5. Module: Orchestrator & CLI
 *   **Goal:** Tie it all together into a single command and define the output logic.
@@ -93,8 +96,9 @@ The goal is to replace the current mix of Bash and Python scripts with a unified
     *   Output Modes: Local (default) vs Cloud.
     *   Logic: Downloader -> Transcriber -> Summarizer -> Archive/Return.
 *   **Plan:**
-    1.  Implement main.py with typer or argparse.
-    2.  Implement the "Project-Based Archiving" logic.
+    1.  Implement src/video2mdnotes/main.py with typer.
+    2.  Implement the "Project-Based Archiving" logic (create folder, move files).
+    3.  Create tests/e2e/test_full_pipeline.py for the end-to-end test.
 *   **Result:**
     *   (Pending)
 
