@@ -1,6 +1,5 @@
 import pytest
 from typer.testing import CliRunner
-from pathlib import Path
 import datetime as dt
 
 from video2mdnotes.main import app

@@ -1,5 +1,4 @@
 from video2mdnotes.config import settings
-from pathlib import Path
 
 def test_settings_load_defaults():
     """Verify that settings load with expected default values."""

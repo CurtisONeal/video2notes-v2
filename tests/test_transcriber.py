@@ -1,6 +1,5 @@
 import pytest
 from unittest.mock import MagicMock, patch
-from pathlib import Path
 from video2mdnotes.core.transcriber import transcribe_audio, TranscriptResult, Segment
 
 # --- Unit Tests (Mocked) ---

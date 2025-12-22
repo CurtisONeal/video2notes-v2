@@ -1,5 +1,4 @@
 import pytest
-from pathlib import Path
 from video2mdnotes.core.downloader import sanitize_filename, download_audio, DownloadResult
 
 def test_sanitize_filename_basic():
