@@ -18,8 +18,20 @@ The goal is to replace the current mix of Bash and Python scripts with a unified
     *   Use pyproject.toml with hatchling build backend.
     *   Use uv for virtual environment and dependency locking.
     *   Implement pydantic-settings for typed configuration (loading .env).
+*   **Dependencies:**
+    *   **Prod:**
+        *   `faster-whisper`: Optimized Whisper implementation for transcription. [Docs](https://github.com/guillaumekln/faster-whisper)
+        *   `yt-dlp`: Command-line audio/video downloader. [Docs](https://github.com/yt-dlp/yt-dlp)
+        *   `rich`: Terminal formatting and progress bars. [Docs](https://rich.readthedocs.io/)
+        *   `pydantic-settings`: Typed configuration management using .env files. [Docs](https://docs.pydantic.dev/latest/concepts/pydantic_settings/)
+        *   `litellm`: Lightweight library to call 100+ LLM APIs (OpenAI, Anthropic, etc). [Docs](https://docs.litellm.ai/)
+        *   `typer`: Modern library for building CLI applications. [Docs](https://typer.tiangolo.com/)
+    *   **Dev:**
+        *   `pytest`: Testing framework. [Docs](https://docs.pytest.org/)
+        *   `ruff`: Extremely fast Python linter and formatter. [Docs](https://docs.astral.sh/ruff/)
+        *   `mypy`: Static type checker. [Docs](https://mypy-lang.org/)
 *   **Steps:**
-    1.  Initialize pyproject.toml with dependencies (faster-whisper, yt-dlp, rich, pydantic-settings, litellm).
+    1.  Initialize pyproject.toml with dependencies.
     2.  Create src/video2mdnotes/ package structure.
     3.  Create config.py to load settings (Paths, API Keys, Model preferences).
 *   **Test:**
