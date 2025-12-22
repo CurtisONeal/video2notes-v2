@@ -28,21 +28,33 @@ This only needs to be done once, or whenever you change the Python code or depen
 docker compose build
 ```
 
-### Run the Pipeline
-This is the main command to process a video.
+### Method 1: CLI Mode (One-off Process)
+This is the standard way to process a single video or playlist. It spins up a container, runs the job, and then deletes the container.
 ```bash
 docker compose run --rm app "YOUR_VIDEO_URL"
 ```
+*   **`--rm`**: Automatically removes the container after the job finishes.
+*   **Options**: You can pass CLI options after the URL (e.g., `--no-keep-wav`).
 
-### Run with Options
-You can pass CLI options after the URL.
+### Method 2: API Mode (Continuous Server)
+Run the application as a REST API server. This is useful if you want to submit multiple jobs without restarting the container or integrate with other tools.
 ```bash
-# Don't keep the WAV file in the final archive
-docker compose run --rm app "YOUR_VIDEO_URL" --no-keep-wav
+docker compose up api
 ```
+*   **Access**: Open your browser to **http://127.0.0.1:8000/docs**.
+*   **Usage**: Use the Swagger UI to send a `POST /process` request with your URL.
+*   **Shutdown**: Press `Ctrl+C` in the terminal window to gracefully stop the server.
+
+### Method 3: Interactive Mode (Shell)
+Start a shell inside the container to run commands manually. Useful for debugging.
+```bash
+docker compose run --rm app /bin/bash
+```
+*   **Inside the container**: You can run `python -m video2mdnotes.main "URL"` repeatedly.
+*   **Exit**: Type `exit` to leave the container.
 
 ### Get Help
-To see all available commands and options:
+To see all available CLI commands and options:
 ```bash
 docker compose run --rm app --help
 ```
