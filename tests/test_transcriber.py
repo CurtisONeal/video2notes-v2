@@ -69,8 +69,12 @@ def test_transcribe_audio_integration(tmp_path):
     try:
         # 1. Download a tiny clip (1 sec)
         url = "https://www.youtube.com/watch?v=tPEE9ZwTmy0"
-        download_result = download_audio(url)
+        download_results = download_audio(url)
         
+        # Ensure we got a result
+        assert len(download_results) == 1
+        download_result = download_results[0]
+
         # 2. Transcribe it
         transcript_result = transcribe_audio(download_result.audio_path, title=download_result.title)
         
@@ -79,7 +83,6 @@ def test_transcribe_audio_integration(tmp_path):
         assert transcript_result.source_file == download_result.audio_path
         # The video has no speech, so text might be empty or hallucinated, 
         # but the object should be valid.
-        # Let's just check that we got a result.
         assert transcript_result.generated_at is not None
         
     finally:

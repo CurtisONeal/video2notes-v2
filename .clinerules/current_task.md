@@ -42,15 +42,7 @@ The goal is to replace the current mix of Bash and Python scripts with a unified
 
 ### 8. Enhancement: Playlist Support
 *   **Goal:** Enable the `process` command to handle playlist URLs, processing each video sequentially.
-*   **Architecture:**
-    *   `downloader.py`: The `download_audio` function must be updated to detect a playlist URL and return a `List[DownloadResult]` instead of a single object.
-    *   `main.py`: The main `process` function must be updated to loop through the list of `DownloadResult` objects, running the transcribe, summarize, and archive steps for each one.
-*   **Plan:**
-    1.  Refactor `downloader.py` to detect playlist metadata and loop through entries, returning a list of results.
-    2.  Update the main loop in `main.py` to iterate over the list of downloads.
-    3.  Create a new E2E test using a small, stable playlist URL to verify the functionality.
-*   **Result:**
-    *   (Pending)
+*   **Result:** [COMPLETE]
 
 ---
 
@@ -66,7 +58,7 @@ The goal is to replace the current mix of Bash and Python scripts with a unified
 ## Side Quests, Errors & Learnings
 
 ### Typer Single-Command Behavior
-*   **Issue:** When a `typer` application has only one command, Typer treats it as the "main" entry point.
+*   **Issue:** When a `typer` application has only one command (e.g., just `process`), Typer treats it as the "main" entry point.
 *   **Symptom:** Invoking `runner.invoke(app, ["process", url])` fails with exit code 2 (Usage Error) because Typer expects `runner.invoke(app, [url])`.
 *   **Resolution:** Adjusted the test invocation to match Typer's single-command behavior.
 
