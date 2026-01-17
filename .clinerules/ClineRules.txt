@@ -530,3 +530,26 @@ data?: any;
 - [ ] Implement the server actions in the `/app/page.tsx` file to allow for manual testing.
 
 - [ ] The backend is now setup.
+## Workflow & Task Management
+
+1.  **Task Definition (.clinerules/current_task.md):**
+    -   Maintain a `current_task.md` file that outlines the major phase goal and specific steps.
+    -   Each step must have a "Goal", "Architecture", "Plan", and "Result" section.
+    -   **NO EMOJIS** or non-ASCII characters in this file.
+    -   Mark steps as [COMPLETE] only after successful testing and committing.
+
+2.  **Iterative Implementation Cycle:**
+    -   **Plan:** Define the specific files to create/edit for the current step.
+    -   **Implement:** Write the code.
+    -   **Test:** Run `uv run pytest` (or specific tests) to verify the implementation.
+    -   **Commit:** Ask the user to commit the changes *only* after tests pass.
+    -   **Update Task:** Update `current_task.md` to reflect the completion.
+
+3.  **Testing Requirements:**
+    -   Every new module must have corresponding unit tests.
+    -   Integration tests should be included where possible (mocking heavy external dependencies for unit tests, but using real calls for integration tests marked with `@pytest.mark.integration`).
+    -   Do not proceed to the next step until the current step's tests pass.
+
+4.  **Git Commits:**
+    -   Commits should be atomic and correspond to the completed step.
+    -   The user will perform the actual git commands; provide the exact commands for them to copy-paste.

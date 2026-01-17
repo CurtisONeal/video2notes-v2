@@ -24,9 +24,6 @@ video2mdnotes/
 └── tests/               # Automated tests for the application
 ```
 
-## User Guide
-See /human_readable_documentation/Current_User_Guide.md for a short user friendly version of the commands and usage.
-
 ### Package Management
 This project uses modern Python packaging tools:
 - **uv**: A fast, reliable package installer and virtual environment manager.
@@ -61,26 +58,33 @@ This project uses modern Python packaging tools:
     ```
 
 ## How to Run
-The application is run as a command inside the Docker container.
 
-### Process a Single Video or Playlist
-This is the main command. It will download, transcribe, summarize, and archive the content from the URL.
+You can run the application in three ways: as a CLI tool, as an API server, or interactively.
+
+### 1. CLI Mode (One-off Process)
+This is the simplest way to process a single video or playlist.
 ```bash
 docker compose run --rm app "YOUR_VIDEO_OR_PLAYLIST_URL"
 ```
+*   **`--rm`**: Automatically removes the container after the job finishes.
+*   **Options**: You can pass flags like `--no-keep-wav` after the URL.
 
-### Run with Options
-You can pass CLI options after the URL.
+### 2. API Mode (Continuous Server)
+Run the application as a REST API with a Swagger UI.
 ```bash
-# Don't keep the WAV file in the final archive
-docker compose run --rm app "YOUR_VIDEO_URL" --no-keep-wav
+docker compose up api
 ```
+*   **Access**: Open your browser to **http://127.0.0.1:8000/docs**.
+*   **Usage**: Use the `POST /process` endpoint to submit URLs.
+*   **Shutdown**: Press `Ctrl+C` in the terminal to gracefully stop the server.
 
-### Get Help
-To see all available commands and options:
+### 3. Interactive Mode (Shell)
+Start a shell inside the container to run commands manually.
 ```bash
-docker compose run --rm app --help
+docker compose run --rm app /bin/bash
 ```
+*   **Inside the container**: You can run `python -m video2mdnotes.main "URL"` repeatedly.
+*   **Exit**: Type `exit` to leave the container.
 
 ### Expected Output
 After a successful run, a new directory will be created in `previous_run_results/` containing the final summary, the raw transcript, the original URL, and (optionally) the downloaded audio file.
@@ -108,16 +112,12 @@ If you want to modify the code or run tests locally, you'll need a local Python 
 Once your local environment is set up, you can use these commands.
 
 **Run Tests:**
-Note:  `uv run pytest` runs all tests, including the end-to-end (E2E) tests.
-Since the E2E tests involve downloading, transcribing, and summarizing real videos (even short ones), they take significantly longer than the unit tests. The playlist test, in particular, processes two videos, so it will take a few minutes.
-
 ```bash
 uv run pytest
 ```
 
 **Run Linter & Formatter:**
 This project uses `ruff` to check for errors and format the code.
-
 ```bash
 # Check for errors
 uv run ruff check .
@@ -128,43 +128,3 @@ uv run ruff check . --fix
 # Format all files
 uv run ruff format .
 ```
-
-# Alternate instructions for Container use with Commandline terminal
-A different workflow, and that requires a slight change in how we think about the container. Instead of running a one-off script, you can use an interactive session inside the container.
-
-## Here's how you do it:
-1. Start an Interactive Shell
-You'll tell Docker to start the container and run a shell (/bin/bash) instead of your Python script. The -it flags are crucial:
-• -i (interactive): Keeps STDIN open.
-• -t (tty): Allocates a pseudo-TTY, which gives you a proper terminal interface.
-Command to run:
-Shell Script
-`docker compose run --rm app /bin/bash`
-(Note: We still use --rm so the container is deleted when you exit the shell, keeping things clean).
-
-2. What Happens Next
-After running that command, your terminal prompt will change. It will look something like this:
-`root@<container_id>:/app#`
-You are now inside the container. From here, you can run your Python script as many times as you want, just like you would on your local machine, but using the container's environment.
-
-3. Running Commands Inside the Container
-Once you have the shell prompt, you can run your script directly:
-```Shell Script
-# Run with a URL
-python -m video2mdnotes.main "https://www.youtube.com/watch?v=tPEE9ZwTmy0"
-
-# Run with another URL
-python -m video2mdnotes.main "https://www.youtube.com/watch?v=another-video"
-
-# Shell Script
- Explore the container's filesystem
-ls -l /app
-```
-
-4. Exiting the Container
-When you are finished, simply type exit and press Enter.
-```Shell Script
-root@<container_id>:/app# exit
-```
-
-This will terminate the shell, and because you used the --rm flag, Docker will automatically delete the container.

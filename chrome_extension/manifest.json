@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Video2MDNotes",
+  "version": "0.1",
+  "description": "Send the current tab's URL to the Video2MDNotes API.",
+  "permissions": [
+    "activeTab"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "gopher_big_48x48.png",
+      "48": "gopher_big_48x48.png",
+      "128": "gopher_big_48x48.png"
+    }
+  },
+  "host_permissions": [
+    "http://localhost:8000/*"
+  ],
+  "icons": {
+    "16": "gopher_big_48x48.png",
+    "48": "gopher_big_48x48.png",
+    "128": "gopher_big_48x48.png"
+  }
+}

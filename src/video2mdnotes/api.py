@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, HttpUrl
 
 from video2mdnotes.config import settings
@@ -12,6 +13,15 @@ import datetime as dt
 app = FastAPI(
     title="Video2MDNotes API",
     description="API for processing video URLs to generate markdown notes.",
+)
+
+# Configure CORS to allow requests from the Chrome Extension
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins (safe for local dev tools)
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
 )
 
 class ProcessRequest(BaseModel):
