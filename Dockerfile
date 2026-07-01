@@ -19,12 +19,16 @@ RUN uv sync --frozen --no-dev
 FROM python:3.11-slim AS runtime
 
 # Install system dependencies (ffmpeg is required for audio processing)
-# Install deno for yt-dlp's JS runtime requirement
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
-    unzip \
-    && curl -fsSL https://deno.land/x/install/install.sh | sh \
     && rm -rf /var/lib/apt/lists/*
+
+# Deno — JS runtime for yt-dlp's YouTube extraction (nsig challenge). Copied
+# from the official pinned image rather than a `curl … | sh` install: the
+# script needs curl (absent from python:slim) and its failure is masked by the
+# pipe, silently shipping an image with no deno. COPY is reproducible anywhere
+# and fails the build loudly if the tag is wrong.
+COPY --from=denoland/deno:bin-2.9.0 /deno /usr/local/bin/deno
 
 # Set working directory
 WORKDIR /app
@@ -37,8 +41,8 @@ COPY src ./src
 COPY summarize_prompt.txt ./
 
 # Set environment variables
-# Add deno to the PATH
-ENV PATH="/root/.deno/bin:/app/.venv/bin:$PATH"
+# deno lives in /usr/local/bin (already on PATH); add the venv.
+ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH="/app/src"
 # Ensure output is unbuffered (logs show up immediately)
 ENV PYTHONUNBUFFERED=1
