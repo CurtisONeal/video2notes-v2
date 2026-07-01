@@ -33,11 +33,10 @@ class Settings(BaseSettings):
 # Instantiate settings
 settings = Settings()
 
-# Auto-detect compute type if set to 'auto'
+# Auto-detect compute type if set to 'auto'.
+# faster-whisper (ctranslate2) has no CUDA backend on macOS, so it runs on the
+# CPU for BOTH Intel and Apple Silicon Macs. CPU float16 is unsupported by
+# ctranslate2 and raises at model load, so int8 is the correct default here.
+# (Reserve float16 for a real CUDA GPU by setting FW_COMPUTE=float16 explicitly.)
 if settings.fw_compute == "auto":
-    import platform
-    # Simple check for Apple Silicon
-    if platform.system() == "Darwin" and platform.machine().startswith("arm"):
-        settings.fw_compute = "float16"
-    else:
-        settings.fw_compute = "int8"
+    settings.fw_compute = "int8"
