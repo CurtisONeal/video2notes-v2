@@ -16,6 +16,8 @@ class DownloadResult(BaseModel):
     title: str
     url: str
     download_date: dt.date
+    tags: List[str] = []
+    description: str = ""
 
 def sanitize_filename(name: str) -> str:
     """
@@ -65,6 +67,8 @@ def download_audio(url: str) -> List[DownloadResult]:
         # For a single video info dict, it might be missing. In that case, we use the original URL.
         video_url = entry.get('url') or url
         title = entry.get('title', 'untitled')
+        tags = entry.get('tags') or []
+        description = entry.get('description') or ""
         sanitized_title = sanitize_filename(title)
         
         logger.info(f"Processing video: {title}")
@@ -88,7 +92,9 @@ def download_audio(url: str) -> List[DownloadResult]:
                 audio_path=output_path,
                 title=title,
                 url=video_url,
-                download_date=dt.date.today()
+                download_date=dt.date.today(),
+                tags=tags,
+                description=description
             ))
         except yt_dlp.utils.DownloadError as e:
             logger.error(f"Failed to download {title}. Reason: {e}")

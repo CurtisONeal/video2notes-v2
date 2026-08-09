@@ -7,7 +7,7 @@ from rich.panel import Panel
 from video2mdnotes.config import settings
 from video2mdnotes.logger import logger
 from video2mdnotes.core.downloader import download_audio
-from video2mdnotes.core.transcriber import transcribe_audio
+from video2mdnotes.core.transcriber import transcribe_audio, build_initial_prompt
 from video2mdnotes.core.summarizer import generate_summary
 
 app = typer.Typer(help="Video to Markdown Notes Pipeline")
@@ -34,7 +34,16 @@ def process(
             
             # 2. Transcribe
             logger.info("Step 2: Transcribing Audio...")
-            transcript_result = transcribe_audio(download_result.audio_path, title=download_result.title)
+            initial_prompt = build_initial_prompt(
+                title=download_result.title,
+                tags=download_result.tags,
+                description=download_result.description
+            )
+            transcript_result = transcribe_audio(
+                download_result.audio_path,
+                title=download_result.title,
+                initial_prompt=initial_prompt
+            )
             logger.success(f"Transcribed: {len(transcript_result.segments)} segments")
 
             # 3. Summarize

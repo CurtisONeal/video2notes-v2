@@ -5,7 +5,7 @@ from pydantic import BaseModel, HttpUrl
 from video2mdnotes.config import settings
 from video2mdnotes.logger import logger
 from video2mdnotes.core.downloader import download_audio
-from video2mdnotes.core.transcriber import transcribe_audio
+from video2mdnotes.core.transcriber import transcribe_audio, build_initial_prompt
 from video2mdnotes.core.summarizer import generate_summary
 import shutil
 import datetime as dt
@@ -39,7 +39,16 @@ def process_pipeline(url: str):
 
         for download_result in download_results:
             logger.info(f"API: Processing: {download_result.title}")
-            transcript_result = transcribe_audio(download_result.audio_path, title=download_result.title)
+            initial_prompt = build_initial_prompt(
+                title=download_result.title,
+                tags=download_result.tags,
+                description=download_result.description
+            )
+            transcript_result = transcribe_audio(
+                download_result.audio_path,
+                title=download_result.title,
+                initial_prompt=initial_prompt
+            )
             summary_result = generate_summary(transcript_result)
             
             # Archiving logic (same as CLI)
