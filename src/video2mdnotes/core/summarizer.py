@@ -57,6 +57,12 @@ def _complete(model: str, api_key: str, system_prompt: str, user_message: str) -
     return content
 
 
+EMPTY_TRANSCRIPT_PLACEHOLDER = (
+    "No speech detected in this video — transcript was empty "
+    "(music/text-only or silent content)."
+)
+
+
 def generate_summary(transcript: TranscriptResult) -> SummaryResult:
     """
     Generates a summary for a given transcript using an LLM.
@@ -65,10 +71,23 @@ def generate_summary(transcript: TranscriptResult) -> SummaryResult:
     or "both" for OpenAI-first-with-Anthropic-fallback). The full raw transcript
     is appended to the end of the summary.
 
+    If the transcript has no segments (e.g. a narration-free/music-only or silent
+    source video), the LLM is not called at all — calling it on empty input causes
+    it to fabricate a plausible-looking but entirely invented summary. A clear
+    placeholder is returned instead.
+
     Raises:
         FileNotFoundError: If the prompt template file is not found.
         RuntimeError: If no configured provider could produce a summary.
     """
+    if not transcript.segments:
+        return SummaryResult(
+            source_file=transcript.source_file,
+            model_name="none",
+            summary_text=EMPTY_TRANSCRIPT_PLACEHOLDER,
+            generated_at=dt.datetime.now(),
+        )
+
     if not settings.prompt_file.exists():
         raise FileNotFoundError(f"Prompt file not found: {settings.prompt_file}")
 

@@ -3,8 +3,12 @@ from unittest.mock import MagicMock, patch
 from pathlib import Path
 import datetime as dt
 
-from video2mdnotes.core.summarizer import generate_summary, SummaryResult
-from video2mdnotes.core.transcriber import TranscriptResult
+from video2mdnotes.core.summarizer import (
+    generate_summary,
+    SummaryResult,
+    EMPTY_TRANSCRIPT_PLACEHOLDER,
+)
+from video2mdnotes.core.transcriber import TranscriptResult, Segment
 from video2mdnotes.config import settings
 
 # --- Fixtures ---
@@ -15,7 +19,7 @@ def mock_transcript_result(tmp_path):
     return TranscriptResult(
         source_file=tmp_path / "test.wav",
         language="en",
-        segments=[],
+        segments=[Segment(start=0.0, end=1.5, text="This is a test transcript.")],
         full_text="This is a test transcript.",
         markdown_content="# Test Transcript\n\nThis is a test transcript.",
         model_name="tiny",
@@ -96,6 +100,21 @@ def test_generate_summary_both_falls_back_to_anthropic(mock_transcript_result, m
                 f"anthropic/{settings.anthropic_model}"
     finally:
         settings.llm_mode, settings.openai_api_key, settings.anthropic_api_key = saved
+
+
+def test_generate_summary_empty_transcript_short_circuits(mock_transcript_result, mock_prompt_file):
+    """An empty (zero-segment) transcript must return a placeholder without calling the LLM."""
+    empty_transcript = mock_transcript_result.model_copy(
+        update={"segments": [], "full_text": "", "markdown_content": ""}
+    )
+
+    with patch("video2mdnotes.core.summarizer.litellm.completion") as mock_completion:
+        result = generate_summary(empty_transcript)
+
+        mock_completion.assert_not_called()
+        assert isinstance(result, SummaryResult)
+        assert result.summary_text == EMPTY_TRANSCRIPT_PLACEHOLDER
+        assert "## Transcript" not in result.summary_text
 
 
 def test_generate_summary_missing_prompt_file(mock_transcript_result):
