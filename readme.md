@@ -89,6 +89,18 @@ docker compose run --rm app /bin/bash
 ### Expected Output
 After a successful run, a new directory will be created in `previous_run_results/` containing the final summary, the raw transcript, the original URL, and (optionally) the downloaded audio file.
 
+### Summarization behavior
+`summarize_prompt.txt` is domain-adaptive: it detects whether the source content is
+technical (programming/ML/data/architecture) or Aikido/martial arts, and interprets each
+output section accordingly (e.g. "New Commands / Techniques" means CLI commands for
+technical content, named techniques/drills for Aikido). It also includes a "Sponsor / Ad
+Content" section that separates podcast sponsor reads from editorial content instead of
+mixing them in or dropping them, grounding instructions against fabricating content for
+thin/empty transcripts, and confidence-calibrated fact-checking (the summarizer has no web
+search, so it's asked to flag its own uncertainty rather than assert flatly). Ported from
+base_human_learn_sys and validated 2026-08-08 against real technical (AI Daily Brief
+podcast) and Aikido content.
+
 ## Development
 If you want to modify the code or run tests locally, you'll need a local Python environment.
 
