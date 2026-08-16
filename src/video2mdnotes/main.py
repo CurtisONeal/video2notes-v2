@@ -238,7 +238,17 @@ def process(
                         keyframes = frames_mod.extract_and_dedupe(
                             video_file, project_dir / "frames"
                         )
-                        readings = visuals.read_frames(keyframes)
+                        # Transcript segments feed the audio-cue ranking
+                        # signal ("as you can see here"); duration bounds the
+                        # final frame's dwell.
+                        readings = visuals.read_frames(
+                            keyframes,
+                            segments=transcript_result.segments,
+                            video_duration=(
+                                transcript_result.segments[-1].end
+                                if transcript_result.segments else None
+                            ),
+                        )
                         visual_markdown = visuals.render_markdown(readings)
                         video_file.unlink(missing_ok=True)
                         shutil.rmtree(project_dir / "_video", ignore_errors=True)

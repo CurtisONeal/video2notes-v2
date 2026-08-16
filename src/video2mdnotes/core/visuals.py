@@ -29,6 +29,7 @@ from video2mdnotes.config import settings
 from video2mdnotes.logger import logger
 from video2mdnotes.core.frames import Keyframe
 from video2mdnotes.core.summarizer import _api_key_for
+from video2mdnotes.core.ranking import select_for_escalation
 
 # A frame whose OCR yields at least this much real text is treated as
 # self-explanatory. Below it, the picture is probably carrying the meaning.
@@ -139,8 +140,17 @@ def describe_image(image_path: Path, model: Optional[str] = None) -> str:
     return "" if text.upper().startswith("NO CONTENT") else text
 
 
-def read_frames(frames: List[Keyframe]) -> List[FrameReading]:
-    """Run the OCR-then-escalate tier over extracted keyframes."""
+def read_frames(
+    frames: List[Keyframe],
+    segments=None,
+    video_duration: Optional[float] = None,
+) -> List[FrameReading]:
+    """Run the OCR-then-escalate tier over extracted keyframes.
+
+    OCR runs on everything (it is free). The paid vision tier runs only on
+    frames the gate marks eligible AND the ranker picks within budget —
+    `segments` and `video_duration` feed that ranking and are optional.
+    """
     readings: List[FrameReading] = []
     have_ocr = ocr_available()
     if not have_ocr and settings.ocr_backend != "none":
@@ -150,9 +160,26 @@ def read_frames(frames: List[Keyframe]) -> List[FrameReading]:
             "Set OCR_BACKEND=none or EXTRACT_FRAMES=false to avoid this."
         )
 
+    # Pass 1: OCR everything (free) and apply the eligibility gate.
+    ocr_texts = [ocr_image(f.path) if have_ocr else "" for f in frames]
+    eligible = [
+        settings.vlm_enabled and needs_vision_model(text) for text in ocr_texts
+    ]
+
+    # Pass 2: rank the eligible frames and spend the budget on the best of
+    # them, rather than on whichever happened to come first.
+    chosen = select_for_escalation(
+        frames, eligible, settings.vlm_max_frames, segments, video_duration
+    )
+    if sum(eligible) > len(chosen):
+        logger.info(
+            f"{sum(eligible)} frame(s) eligible for the vision model, budget is "
+            f"{settings.vlm_max_frames} — ranking by dwell time, uniqueness and "
+            f"audio cues."
+        )
+
     escalated = 0
-    for frame in frames:
-        text = ocr_image(frame.path) if have_ocr else ""
+    for frame, text in zip(frames, ocr_texts):
         reading = FrameReading(
             timestamp=frame.timestamp,
             label=frame.label,
@@ -161,18 +188,12 @@ def read_frames(frames: List[Keyframe]) -> List[FrameReading]:
             source="ocr" if text else "none",
         )
 
-        if settings.vlm_enabled and needs_vision_model(text):
-            if escalated >= settings.vlm_max_frames:
-                logger.info(
-                    f"Vision-model budget reached ({settings.vlm_max_frames} frames); "
-                    f"remaining frames use OCR text only."
-                )
-            else:
-                description = describe_image(frame.path)
-                if description:
-                    reading.description = description
-                    reading.source = f"{reading.source}+vlm:{settings.vlm_model}".lstrip("+")
-                    escalated += 1
+        if frame.path in chosen:
+            description = describe_image(frame.path)
+            if description:
+                reading.description = description
+                reading.source = f"{reading.source}+vlm:{settings.vlm_model}".lstrip("+")
+                escalated += 1
 
         readings.append(reading)
 

@@ -137,8 +137,34 @@ class Settings(BaseSettings):
     # picture-carrying (charts, diagrams, UI) and escalated.
     vlm_escalate_below_words: int = 12
     # Hard ceiling on escalations per video, so one dense deck cannot run away
-    # with the bill.
+    # with the bill. Which frames get spent on is decided by core/ranking.py,
+    # not by chronological order — otherwise the budget is exhausted on the
+    # intro and the conclusion is never seen.
     vlm_max_frames: int = 15
+
+    # Ranking weights for choosing WHICH eligible frames to spend the budget on.
+    # All three signals are free — computed from data already on hand.
+    # Dwell dominates by design: how long a frame stayed on screen is the
+    # strongest available proxy for "this was deliberate content".
+    rank_weight_dwell: float = 0.45
+    rank_weight_uniqueness: float = 0.30
+    rank_weight_audio_cue: float = 0.25
+    # Phrases that mean "the speaker is pointing at the screen". Only usable
+    # when there is narration, which is why this ranks rather than triggers.
+    rank_cue_phrases: str = (
+        "as you can see,look at,here we have,this shows,notice that,"
+        "on the screen,this diagram,this chart,this table,shown here,"
+        "take a look,over here,in this figure,notice how"
+    )
+    # Seconds either side of a frame in which a cue phrase counts as related.
+    rank_cue_window: float = 8.0
+    # The last keyframe's dwell is capped at this multiple of the LONGEST gap
+    # actually observed. Without it, a run truncated by FRAME_MAX credits its
+    # final frame with every remaining second of the video, and that outlier
+    # flattens every other frame's score. Multiple of the longest rather than
+    # the median because transition-heavy content has a ~1s median, which would
+    # crush a genuinely held closing slide.
+    rank_final_dwell_clamp: float = 1.0
 
     # faster-whisper Configuration
     fw_model: str = "medium"
