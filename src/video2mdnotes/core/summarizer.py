@@ -1,5 +1,6 @@
 import datetime as dt
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -20,6 +21,61 @@ class SummaryResult(BaseModel):
 
 
 CLAUDE_CLI_PREFIX = "claude-cli/"
+
+# Signatures that mean "this account is out of capacity for now", as opposed to
+# an ordinary failure. The distinction matters: an ordinary failure should fall
+# through to the next backend, but exhaustion must NOT silently escalate to
+# metered billing — an unattended research run would spend real money without
+# anyone choosing to.
+_EXHAUSTION = re.compile(
+    r"rate.?limit|usage limit|limit reached|out of (?:usage|credit)|quota|"
+    r"too many requests|\b429\b|exceeded your|upgrade to continue",
+    re.IGNORECASE,
+)
+
+# Best-effort reset-time parsing. The CLI does not guarantee any of these, so
+# every branch is optional and the caller falls back to a configured default.
+_RESET_ABSOLUTE = re.compile(
+    r"resets?\s+at\s+(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?)", re.I
+)
+# Durations are matched independently rather than anchored to a keyword: an
+# earlier version keyed off "again|after|in" and "try again in 3 hours" matched
+# on "again", then found no digits before "in" and silently gave up.
+_RESET_HOURS = re.compile(r"(\d+)\s*(?:hours?|hrs?|h)\b", re.I)
+_RESET_MINUTES = re.compile(r"(\d+)\s*(?:minutes?|mins?|m)\b", re.I)
+
+
+class SubscriptionExhausted(Exception):
+    """The subscription backend is out of capacity (not a generic failure)."""
+
+    def __init__(self, message: str, reset_at: dt.datetime | None = None):
+        super().__init__(message)
+        self.reset_at = reset_at
+
+
+def parse_reset_time(text: str, now: dt.datetime | None = None) -> dt.datetime | None:
+    """Extract a limit-reset time from CLI error output, if it reports one."""
+    now = now or dt.datetime.now()
+
+    text = text or ""
+
+    absolute = _RESET_ABSOLUTE.search(text)
+    if absolute:
+        try:
+            return dt.datetime.fromisoformat(absolute.group(1).replace(" ", "T"))
+        except ValueError:
+            pass
+
+    hours = _RESET_HOURS.search(text)
+    minutes = _RESET_MINUTES.search(text)
+    if hours or minutes:
+        delta = dt.timedelta(
+            hours=int(hours.group(1)) if hours else 0,
+            minutes=int(minutes.group(1)) if minutes else 0,
+        )
+        if delta:
+            return now + delta
+    return None
 
 # litellm providers that run locally / self-hosted and therefore need no API key.
 LOCAL_PROVIDERS = frozenset({
@@ -81,7 +137,13 @@ def _complete_claude_cli(model: str, system_prompt_file: Path, user_message: str
         )
 
     if proc.returncode != 0:
-        detail = (proc.stderr or proc.stdout or "").strip()[:400]
+        combined = f"{proc.stderr or ''}\n{proc.stdout or ''}"
+        detail = combined.strip()[:400]
+        if _EXHAUSTION.search(combined):
+            raise SubscriptionExhausted(
+                f"claude CLI subscription exhausted: {detail}",
+                reset_at=parse_reset_time(combined),
+            )
         raise RuntimeError(f"claude CLI exited {proc.returncode}: {detail}")
 
     content = (proc.stdout or "").strip()
@@ -150,8 +212,23 @@ def generate_summary(transcript: TranscriptResult) -> SummaryResult:
 
     # 3. Walk the failover chain in order, falling back on failure.
     errors: list[str] = []
+    exhausted = False
+    exhaustion: SubscriptionExhausted | None = None
+    policy = (settings.on_exhaustion or "wait").strip().lower()
+
     for model in settings.llm_models:
         provider = _provider_of(model) or "unknown"
+
+        # Once the subscription is exhausted, what may still run depends on
+        # policy. The default deliberately refuses to reach a paid backend:
+        # an unattended run must not start spending because nobody was there
+        # to answer. main.py turns the raised exception into a wait or a stop.
+        if exhausted and policy not in ("metered", "local"):
+            break
+        if exhausted and policy == "local" and provider not in LOCAL_PROVIDERS:
+            errors.append(f"{model}: skipped (on-exhaustion=local allows local backends only)")
+            continue
+
         try:
             if model.startswith(CLAUDE_CLI_PREFIX):
                 # Subscription CLI: authenticates from the keychain, no API key.
@@ -174,6 +251,13 @@ def generate_summary(transcript: TranscriptResult) -> SummaryResult:
                     errors.append(f"{model}: no API key configured")
                     continue
                 llm_output = _complete(model, api_key, system_prompt, user_message)
+        except SubscriptionExhausted as e:
+            exhausted = True
+            exhaustion = e
+            errors.append(f"{model}: {e}")
+            print(f"Summarizer: {model} exhausted; not escalating to a paid backend "
+                  f"unless --on-exhaustion says to.")
+            continue
         except Exception as e:  # noqa: BLE001 - record and try the next provider
             errors.append(f"{model}: {e}")
             print(f"Summarizer: {model} failed ({e}); trying next provider if any.")
@@ -187,6 +271,11 @@ def generate_summary(transcript: TranscriptResult) -> SummaryResult:
             summary_text=final_summary_text,
             generated_at=dt.datetime.now(),
         )
+
+    # Exhaustion is re-raised as itself so the caller can wait for the limit to
+    # reset and retry this same video, rather than treating it as a dead run.
+    if exhausted:
+        raise exhaustion
 
     raise RuntimeError(
         "Summary generation failed for all configured providers: " + "; ".join(errors)

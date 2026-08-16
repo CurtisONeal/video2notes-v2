@@ -5,6 +5,8 @@ import datetime as dt
 
 from video2mdnotes.core.summarizer import (
     generate_summary,
+    SubscriptionExhausted,
+    parse_reset_time,
     SummaryResult,
     EMPTY_TRANSCRIPT_PLACEHOLDER,
 )
@@ -53,6 +55,7 @@ def pinned_chain():
         settings.openai_api_key,
         settings.anthropic_api_key,
         settings.allow_local_models,
+        settings.on_exhaustion,
     )
     yield lambda models: setattr(settings, "llm_models", models)
     (
@@ -60,6 +63,7 @@ def pinned_chain():
         settings.openai_api_key,
         settings.anthropic_api_key,
         settings.allow_local_models,
+        settings.on_exhaustion,
     ) = saved
 
 
@@ -162,7 +166,7 @@ def test_claude_cli_nonzero_exit_falls_through(
     with patch("video2mdnotes.core.summarizer.subprocess.run") as mock_run, \
          patch("video2mdnotes.core.summarizer.litellm.completion") as mock_completion:
         mock_run.return_value = MagicMock(
-            returncode=1, stdout="", stderr="rate limit exceeded"
+            returncode=1, stdout="", stderr="claude: command crashed"
         )
         ok = MagicMock()
         ok.choices[0].message.content = "# Summary\nFrom OpenAI."
@@ -261,3 +265,104 @@ def test_generate_summary_integration():
         
     except Exception as e:
         pytest.fail(f"LLM Integration test failed: {e}")
+
+
+# --- Subscription exhaustion (research runs must not spend money unattended) ---
+
+def _exhausted_proc():
+    return MagicMock(returncode=1, stdout="",
+                     stderr="Usage limit reached. Try again in 3 hours 20 minutes.")
+
+
+def test_exhaustion_does_not_escalate_to_metered_by_default(
+    mock_transcript_result, mock_prompt_file, pinned_chain
+):
+    """The whole point: nobody is there to consent, so nothing paid may run."""
+    pinned_chain(["claude-cli/opus", "claude-cli/sonnet", "openai/gpt-4o"])
+    settings.openai_api_key = "sk-test"
+    settings.on_exhaustion = "wait"   # main.py turns this into a wait+retry
+
+    with patch("video2mdnotes.core.summarizer.subprocess.run") as run, \
+         patch("video2mdnotes.core.summarizer.litellm.completion") as comp:
+        run.return_value = _exhausted_proc()
+        with pytest.raises(SubscriptionExhausted):
+            generate_summary(mock_transcript_result)
+        comp.assert_not_called()   # no paid call was made
+
+
+def test_exhaustion_escalates_to_metered_only_when_asked(
+    mock_transcript_result, mock_prompt_file, pinned_chain
+):
+    pinned_chain(["claude-cli/opus", "openai/gpt-4o"])
+    settings.openai_api_key = "sk-test"
+    settings.on_exhaustion = "metered"
+
+    with patch("video2mdnotes.core.summarizer.subprocess.run") as run, \
+         patch("video2mdnotes.core.summarizer.litellm.completion") as comp:
+        run.return_value = _exhausted_proc()
+        ok = MagicMock()
+        ok.choices[0].message.content = "# Summary"
+        comp.return_value = ok
+
+        result = generate_summary(mock_transcript_result)
+
+    assert result.model_name == "openai/gpt-4o"
+
+
+def test_exhaustion_local_policy_skips_paid_backends(
+    mock_transcript_result, mock_prompt_file, pinned_chain
+):
+    """'local' must not be a backdoor to metered spending."""
+    pinned_chain(["claude-cli/opus", "openai/gpt-4o", "ollama/llama3.1"])
+    settings.openai_api_key = "sk-test"
+    settings.allow_local_models = True
+    settings.on_exhaustion = "local"
+
+    with patch("video2mdnotes.core.summarizer.subprocess.run") as run, \
+         patch("video2mdnotes.core.summarizer.litellm.completion") as comp:
+        run.return_value = _exhausted_proc()
+        ok = MagicMock()
+        ok.choices[0].message.content = "# Summary"
+        comp.return_value = ok
+
+        result = generate_summary(mock_transcript_result)
+
+    assert result.model_name == "ollama/llama3.1"
+    # Exactly one litellm call, and it was the local one — never openai.
+    assert comp.call_count == 1
+    assert comp.call_args.kwargs["model"] == "ollama/llama3.1"
+
+
+def test_ordinary_failure_still_falls_through(
+    mock_transcript_result, mock_prompt_file, pinned_chain
+):
+    """A crash is not exhaustion; normal failover must be unaffected."""
+    pinned_chain(["claude-cli/opus", "openai/gpt-4o"])
+    settings.openai_api_key = "sk-test"
+    settings.on_exhaustion = "wait"
+
+    with patch("video2mdnotes.core.summarizer.subprocess.run") as run, \
+         patch("video2mdnotes.core.summarizer.litellm.completion") as comp:
+        run.return_value = MagicMock(returncode=1, stdout="", stderr="segfault")
+        ok = MagicMock()
+        ok.choices[0].message.content = "# Summary"
+        comp.return_value = ok
+
+        result = generate_summary(mock_transcript_result)
+
+    assert result.model_name == "openai/gpt-4o"
+
+
+@pytest.mark.parametrize("text,hours", [
+    ("Usage limit reached. Try again in 3 hours 20 minutes.", 3),
+    ("rate limit exceeded, retry after 45 minutes", 0),
+])
+def test_parse_reset_time_relative(text, hours):
+    now = dt.datetime(2026, 8, 16, 10, 0, 0)
+    got = parse_reset_time(text, now=now)
+    assert got is not None and got > now
+    assert (got - now).total_seconds() >= hours * 3600
+
+
+def test_parse_reset_time_absent_returns_none():
+    assert parse_reset_time("something else entirely") is None

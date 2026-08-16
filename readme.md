@@ -241,6 +241,45 @@ and be rejected as "no speech."
 Disable the whole behavior with `CAPTIONS_FIRST=false` to always transcribe
 locally.
 
+### Long runs: resuming and running out of capacity
+
+A playlist of long videos is many large prompts, so a research run can exhaust
+your subscription partway through. Two behaviors exist for that.
+
+**Finished work is never redone.** Any video that already has a summary on disk
+is skipped, matched on title independent of run date. Re-running the same
+command continues where it stopped:
+
+```
+[1/10] Skipping (already summarized): But what is a neural network?...
+[5/10] Processing: Large Language Models explained briefly
+```
+
+Pass `--force` to re-summarize everything anyway — e.g. to redo a playlist with
+a better model.
+
+**Running out of capacity does not silently start costing money.** When the
+subscription backend is exhausted, the chain does **not** fall through to a paid
+backend by default. `--on-exhaustion` controls what happens instead:
+
+| Mode | Behavior |
+|---|---|
+| `wait` *(default)* | Alert, sleep until the limit resets, retry the same video. Uses a reset time from the CLI when it reports one, else `EXHAUSTION_WAIT_SECONDS`. |
+| `metered` | Continue on the paid backends in `LLM_MODELS`. |
+| `local` | Continue on local backends only (needs `ALLOW_LOCAL_MODELS`). Never reaches a paid backend. |
+| `stop` | Stop cleanly. Finished videos are kept and skipped on resume. |
+| `ask` | Prompt once, then apply that answer for the rest of the run. |
+
+`wait` is the default deliberately. An unattended run — a research agent that
+cannot answer a prompt — must not begin spending money merely because nobody was
+there to say no; it waits for capacity already paid for. `ask` degrades to
+`wait`, not to spending, when there is no TTY.
+
+Exhaustion is also distinguished from ordinary failure: a crashed backend still
+fails over normally, and one bad video no longer abandons the rest of a
+playlist. Every run ends with a ledger of summarized / skipped / failed, and
+names the video it stopped on.
+
 ### Summarization behavior
 `summarize_prompt.txt` is domain-adaptive: it detects whether the source content is
 technical (programming/ML/data/architecture) or Aikido/martial arts, and interprets each

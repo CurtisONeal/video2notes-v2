@@ -34,6 +34,23 @@ class Settings(BaseSettings):
     # so enabling local summarization must be an explicit, deliberate choice.
     allow_local_models: bool = False
 
+    # What to do when the subscription backend runs out of capacity mid-run.
+    #   "wait"    -> alert, sleep until the limit resets, retry the same video.
+    #                Default, because an unattended run (e.g. a research agent
+    #                that cannot answer a prompt) must NOT start spending money
+    #                just because nobody was there to say no. It waits for the
+    #                capacity that is already paid for.
+    #   "metered" -> continue on the paid backends in the chain.
+    #   "local"   -> continue, but only on local backends (needs
+    #                ALLOW_LOCAL_MODELS and a local entry in LLM_MODELS).
+    #   "stop"    -> stop cleanly; finished videos are kept and skipped on resume.
+    #   "ask"     -> prompt once, then apply that answer for the rest of the run.
+    on_exhaustion: str = "wait"
+    # Used only when the CLI does not report a reset time in its error output.
+    exhaustion_wait_seconds: int = 5 * 60 * 60
+    # Upper bound, so a misparsed reset time cannot park a run for days.
+    exhaustion_max_wait_seconds: int = 12 * 60 * 60
+
     # `claude` CLI used by the claude-cli/ backend. Resolved on PATH if left bare.
     claude_cli_path: str = "claude"
     # `claude -p` is an AGENT, not a completion endpoint: by default it can load
