@@ -34,7 +34,106 @@ This project uses modern Python packaging tools:
 
 ### Prerequisites
 - **Docker**: Docker Desktop (for Mac/Windows) or Docker Engine (for Linux) must be installed and running.
-- **API Key**: You need an API key from an LLM provider (like OpenAI or Anthropic) to generate summaries.
+- **A summarization backend**: either a logged-in `claude` CLI (subscription, no
+  API key), an LLM provider API key, or a local model server. See
+  [Choosing a summarization backend](#choosing-a-summarization-backend) — this is
+  a real setup decision, not a default to skip past.
+
+### Choosing a summarization backend
+
+The model chosen here does **not** affect transcription accuracy at all — but it
+substantially changes how good the notes are, and it is easy to end up with a
+weaker model doing the work without noticing.
+
+#### The pipeline has two separate model steps
+
+| Step | What runs it | Your choice? |
+|---|---|---|
+| **Transcription** (audio → text) | `faster-whisper`, locally on CPU | Model size only (`FW_MODEL`, default `medium`). No API, no key, no network. |
+| **Summarization** (text → notes) | An LLM, via one of the backends below | **Yes — this section.** |
+
+Nothing in this section touches transcription. A "cheaper model" here means
+thinner *notes*, never a worse *transcript*.
+
+#### The chain
+
+`LLM_MODELS` is an ordered **failover** chain, not a quality ladder. Entry 1 does
+essentially all the work; later entries fire only when an earlier one *errors*.
+**Putting a cheap model first makes it your summarizer.** The default:
+
+```
+LLM_MODELS=["claude-cli/opus", "claude-cli/sonnet", "openai/gpt-4o"]
+```
+
+**1. Subscription CLI (`claude-cli/…`) — no metered cost**
+
+Shells out to the `claude` CLI, which authenticates with your logged-in Claude
+subscription (macOS keychain) rather than an API key. Requires the CLI installed
+and logged in. Bounded by your subscription's rate limits, which is exactly why a
+metered entry sits behind it in the default chain. Aliases: `opus`, `sonnet`,
+`haiku`.
+
+**2. Metered API (`openai/…`, `anthropic/…`) — billed per token**
+
+Standard REST via litellm using `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`. No rate
+ceiling, but every run costs money and a full transcript is a large prompt. These
+keys are often shared with other tools on the same machine, so the usage lands on
+the same bill.
+
+**3. Local models (`ollama/…`, `lm_studio/…`) — privacy option, off by default**
+
+```
+ALLOW_LOCAL_MODELS=true
+LLM_MODELS=["ollama/llama3.1", "claude-cli/opus"]
+```
+
+Requires Ollama or LM Studio installed and serving. **Use this when the content
+must not leave the machine** — private recordings, client material, anything
+under NDA. Both the transcription and summarization steps then run entirely
+locally, so a full run touches the network only to fetch the source video.
+
+It is gated behind `ALLOW_LOCAL_MODELS` deliberately: local models need no API
+key, so without the gate a misconfigured chain could silently fall through to a
+much weaker model and emit notes that *look* fine. Expect noticeably shallower
+analysis than the hosted models — `summarize_prompt.txt` was tuned and validated
+against frontier models, and that validation does not carry over.
+
+#### Measured model comparison
+
+Same transcript, same prompt, tools disabled, summarization step only:
+
+| Model | Time | Output | What you get |
+|---|---|---|---|
+| `haiku` | 16s | 3.3 KB | Accurate and faithful. Restates what was said, correct section discipline, little added analysis. |
+| `sonnet` | 35s | 5.5 KB | Balanced. Adds domain framing and some nuance. |
+| `opus` | 54s | 9.1 KB | Different in kind, not just longer — cites timestamp ranges, derives operational consequences the transcript never states, and explicitly names what is *absent* from the source. |
+
+All three produced the same 8 sections and the same 3 correct `- None` answers,
+so structural compliance is not the differentiator — analytical depth is. Use
+`haiku` for bulk or playlist runs where coverage beats insight; `opus` for
+material you actually intend to study.
+
+#### Why tools are disabled on the CLI backend
+
+`claude -p` is an **agent**, not a plain completion endpoint — by default it can
+load skills, search the web, and read files. Left enabled, this backend:
+
+- **Breaks grounding.** Observed live: summarizing a transcript about Claude
+  models, the agent loaded API documentation and wrote confident,
+  documentation-sourced claims into "Fact-Checked Notes" — a section the prompt
+  deliberately instructs the model to *hedge* precisely because it is supposed to
+  have no external lookup (see [Summarization behavior](#summarization-behavior)).
+  Verified and unverified claims become indistinguishable.
+- **Makes runs non-reproducible**, since output depends on what the agent chose
+  to look up that time.
+- **Opens a prompt-injection surface.** Transcripts are untrusted third-party
+  content. An agent with file and shell access, summarizing text an attacker
+  controls, is a bad combination.
+
+So the CLI backend always passes `--disallowedTools` and runs from a scratch
+working directory (a repo cwd would pull that repo's `CLAUDE.md` into an
+unrelated summarization job). Both are configurable but neither should be
+removed.
 
 ### Quick Start
 1.  **Clone the repository:**
@@ -88,6 +187,59 @@ docker compose run --rm app /bin/bash
 
 ### Expected Output
 After a successful run, a new directory will be created in `previous_run_results/` containing the final summary, the raw transcript, the original URL, and (optionally) the downloaded audio file.
+
+### Transcript sourcing (captions-first)
+
+Before downloading any audio, the pipeline probes the source for an existing
+**human-authored** caption track. If it finds a usable one, it uses that and
+skips both the audio download and the Whisper run — on a ~19-minute video that
+is roughly ten minutes of work avoided. Otherwise it downloads audio and
+transcribes locally, exactly as before.
+
+Every transcript records where it came from, in its own front matter:
+
+```yaml
+transcript_source: captions (manual, en)   # or: whisper
+```
+
+ASR output and a human-authored transcript are not interchangeable evidence, so
+this is recorded rather than left to be inferred from the model field.
+
+**Machine captions are never used.** yt-dlp separates human-authored `subtitles`
+from machine `automatic_captions`, and only the former are accepted. Auto-captions
+are ASR *without* the vocabulary hint `build_initial_prompt()` supplies, so using
+them would reintroduce the exact error class that hint exists to fix
+("Claude" → "Cloud"). They are also silently machine-translated — a probe of one
+English video listed `ab` (Abkhazian) among its automatic captions. Local Whisper
+is the better fallback.
+
+**A caption track must prove it carries speech.** Music videos return tracks that
+are entirely `[♪♪♪]` / `[Music]` cues; those pass a naive "are there segments?"
+check and would feed the summarizer garbage it is then obliged to summarize. A
+track yielding fewer than `CAPTIONS_MIN_WORDS` word-equivalents is rejected in
+favour of Whisper. Erring this way only ever costs time, never correctness.
+
+**Language selection.** `CAPTIONS_LANG` is an ordered, comma-separated
+preference — `en,ja` tries English then Japanese. The token `any` accepts
+whatever manual track the source ships, which is how content in an unanticipated
+language stays reachable on an otherwise English install:
+
+```
+CAPTIONS_LANG=en,any
+```
+
+Each entry matches on language prefix, so `en` accepts `en-US`/`en-GB`, with an
+exact match preferred. Empty falls back to `FW_LANG`. It is kept separate from
+`FW_LANG` because that setting tells Whisper what to expect, whereas a source in
+another language can still be worth taking captions from.
+
+Japanese, Chinese and Korean are **not** space-delimited, so the speech guard
+counts CJK characters directly (roughly two characters per word-equivalent)
+rather than counting spaced words — otherwise every CJK track would score zero
+and be rejected as "no speech."
+
+Disable the whole behavior with `CAPTIONS_FIRST=false` to always transcribe
+locally.
 
 ### Summarization behavior
 `summarize_prompt.txt` is domain-adaptive: it detects whether the source content is

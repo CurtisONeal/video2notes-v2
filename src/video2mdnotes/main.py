@@ -6,9 +6,10 @@ from rich.panel import Panel
 
 from video2mdnotes.config import settings
 from video2mdnotes.logger import logger
-from video2mdnotes.core.downloader import download_audio
+from video2mdnotes.core.downloader import DownloadResult, fetch_audio, probe_source
 from video2mdnotes.core.transcriber import transcribe_audio, build_initial_prompt
 from video2mdnotes.core.summarizer import generate_summary
+from video2mdnotes.core.captions import transcript_from_captions
 
 app = typer.Typer(help="Video to Markdown Notes Pipeline")
 console = Console()
@@ -24,27 +25,53 @@ def process(
     logger.info(f"Starting processing for URL: {url}")
 
     try:
-        # 1. Download
-        logger.info("Step 1: Downloading Audio...")
-        download_results = download_audio(url)
-        logger.success(f"Downloaded {len(download_results)} videos.")
+        # 1. Probe (metadata + caption availability; no audio yet)
+        logger.info("Step 1: Probing source...")
+        sources = probe_source(url)
+        logger.success(f"Found {len(sources)} videos.")
 
-        for download_result in download_results:
-            logger.info(f"Processing: {download_result.title}")
-            
-            # 2. Transcribe
-            logger.info("Step 2: Transcribing Audio...")
-            initial_prompt = build_initial_prompt(
-                title=download_result.title,
-                tags=download_result.tags,
-                description=download_result.description
+        for source in sources:
+            logger.info(f"Processing: {source.title}")
+
+            # 2. Transcript — captions first, Whisper as the fallback.
+            logger.info("Step 2: Obtaining Transcript...")
+            transcript_result = None
+            if settings.captions_first:
+                transcript_result = transcript_from_captions(
+                    title=source.title, subtitles=source.subtitles
+                )
+                if transcript_result is None and source.has_automatic_captions:
+                    logger.info(
+                        "Only machine captions available — using Whisper instead "
+                        "(auto-captions are ASR without our vocabulary hint)."
+                    )
+
+            audio_path = None
+            if transcript_result is None:
+                audio_path = fetch_audio(source)
+                initial_prompt = build_initial_prompt(
+                    title=source.title,
+                    tags=source.tags,
+                    description=source.description
+                )
+                transcript_result = transcribe_audio(
+                    audio_path,
+                    title=source.title,
+                    initial_prompt=initial_prompt
+                )
+
+            download_result = DownloadResult(
+                audio_path=audio_path,
+                title=source.title,
+                url=source.url,
+                download_date=dt.date.today(),
+                tags=source.tags,
+                description=source.description,
             )
-            transcript_result = transcribe_audio(
-                download_result.audio_path,
-                title=download_result.title,
-                initial_prompt=initial_prompt
+            logger.success(
+                f"Transcript ready via {transcript_result.transcript_source}: "
+                f"{len(transcript_result.segments)} segments"
             )
-            logger.success(f"Transcribed: {len(transcript_result.segments)} segments")
 
             # 3. Summarize
             logger.info("Step 3: Generating Summary...")
@@ -62,20 +89,22 @@ def process(
             project_dir = settings.output_dir / project_dir_name
             project_dir.mkdir(parents=True, exist_ok=True)
 
-            wav_dir = project_dir / "wav_files"
             transcripts_dir = project_dir / "transcripts"
             summaries_dir = project_dir / "summaries"
-            
-            wav_dir.mkdir(exist_ok=True)
+
             transcripts_dir.mkdir(exist_ok=True)
             summaries_dir.mkdir(exist_ok=True)
 
-            dest_wav = wav_dir / download_result.audio_path.name
-            if keep_wav:
-                shutil.move(str(download_result.audio_path), str(dest_wav))
-            else:
-                download_result.audio_path.unlink()
-                dest_wav = None
+            # No audio exists on the captions path — nothing to archive or clean up.
+            dest_wav = None
+            if download_result.audio_path is not None:
+                wav_dir = project_dir / "wav_files"
+                wav_dir.mkdir(exist_ok=True)
+                if keep_wav:
+                    dest_wav = wav_dir / download_result.audio_path.name
+                    shutil.move(str(download_result.audio_path), str(dest_wav))
+                else:
+                    download_result.audio_path.unlink()
 
             transcript_path = transcripts_dir / f"{safe_title}.md"
             transcript_path.write_text(transcript_result.markdown_content, encoding="utf-8")

@@ -8,24 +8,71 @@ class Settings(BaseSettings):
     """
     Application settings loaded from .env file and environment variables.
     """
-    # LLM Provider Configuration
+    # LLM Provider Configuration (summarization only — transcription is local)
     #
-    # llm_mode selects the summarization provider strategy (env: LLM_MODE):
-    #   "openai"    (A) -> OpenAI only
-    #   "anthropic" (B) -> Anthropic only
-    #   "both"          -> OpenAI first, fall back to Anthropic on failure
-    # Per-provider models are chosen with openai_model / anthropic_model, so you
-    # can swap in a smarter or cheaper model per provider without code changes.
-    llm_mode: str = "openai"
-    openai_model: str = "gpt-4o-mini"
-    anthropic_model: str = "claude-haiku-4-5"
+    # llm_models is an ordered FAILOVER chain, not a quality ladder: entry 1 does
+    # essentially all the work, and later entries fire only when an earlier one
+    # *errors*. Putting a cheap model first makes it your summarizer.
+    #
+    # Three backend kinds are understood, by prefix:
+    #   "claude-cli/<alias>"  -> subprocess to the `claude` CLI, authenticated
+    #                            with the logged-in subscription (no API key, no
+    #                            metered billing). Aliases: opus/sonnet/haiku.
+    #   "openai/…", "anthropic/…"
+    #                         -> metered REST via litellm; needs the matching key.
+    #   "ollama/…", "lm_studio/…", …
+    #                         -> local/self-hosted via litellm; needs NO key, so
+    #                            it is gated behind allow_local_models (below).
+    llm_models: list[str] = [
+        "claude-cli/opus",     # subscription, deepest analysis
+        "claude-cli/sonnet",   # subscription, faster fallback
+        "openai/gpt-4o",       # metered — only if the subscription is unavailable
+    ]
+
+    # Local models need no API key. Without this gate a misconfigured chain could
+    # silently fall through to a much weaker model and emit notes that look fine,
+    # so enabling local summarization must be an explicit, deliberate choice.
+    allow_local_models: bool = False
+
+    # `claude` CLI used by the claude-cli/ backend. Resolved on PATH if left bare.
+    claude_cli_path: str = "claude"
+    # `claude -p` is an AGENT, not a completion endpoint: by default it can load
+    # skills, search the web, and read files. Transcripts are untrusted
+    # third-party content, so tools are disabled — see readme.md.
+    claude_cli_disallowed_tools: str = (
+        "Skill,WebSearch,WebFetch,Read,Bash,Glob,Grep,Task,Agent,Edit,Write"
+    )
+    claude_cli_timeout: int = 900
+
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
 
     # Deprecated: retained for backward-compat with existing .env / docker-compose
-    # (LLM_PROVIDER / LLM_MODEL). The summarizer now uses llm_mode + *_model above.
+    # (LLM_MODE / LLM_PROVIDER / LLM_MODEL, openai_model / anthropic_model).
+    # The summarizer now uses the llm_models chain above.
+    llm_mode: str = "openai"
+    openai_model: str = "gpt-4o-mini"
+    anthropic_model: str = "claude-haiku-4-5"
     llm_provider: str = "openai"
     llm_model: str = "gpt-4o-mini"
+
+    # Captions-first Configuration
+    #
+    # When a source ships a human-authored transcript, using it skips both the
+    # audio download and the ~10-minute Whisper run. Only manual tracks are ever
+    # used — machine `automatic_captions` are ASR without our vocabulary hint,
+    # so Whisper is the better fallback. See core/captions.py.
+    captions_first: bool = True
+    # A caption track must yield at least this many word-equivalents, or it is
+    # treated as unusable (music videos return cues that are entirely "[♪♪♪]").
+    # CJK text is counted by character, since it is not space-delimited.
+    captions_min_words: int = 20
+    # Ordered, comma-separated language preference for caption tracks, e.g.
+    # "en,ja" or "ja,any". The token "any" accepts whatever manual track the
+    # source ships. Empty falls back to FW_LANG. Kept separate from FW_LANG
+    # because that setting tells Whisper what to expect, whereas a source in
+    # another language can still be worth taking captions from.
+    captions_lang: str = ""
 
     # faster-whisper Configuration
     fw_model: str = "medium"

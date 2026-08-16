@@ -1,4 +1,8 @@
 import datetime as dt
+import os
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 from pydantic import BaseModel
 import litellm
@@ -15,32 +19,78 @@ class SummaryResult(BaseModel):
     generated_at: dt.datetime
 
 
-def _provider_chain() -> list[tuple[str, str, str | None]]:
-    """Ordered list of (provider, litellm_model, api_key) attempts.
+CLAUDE_CLI_PREFIX = "claude-cli/"
 
-    Driven by settings.llm_mode:
-      - "openai"    (A): OpenAI only
-      - "anthropic" (B): Anthropic only
-      - "both"         : OpenAI first, then Anthropic as a fallback
+# litellm providers that run locally / self-hosted and therefore need no API key.
+LOCAL_PROVIDERS = frozenset({
+    "ollama", "ollama_chat", "lm_studio", "vllm", "hosted_vllm",
+    "llamafile", "xinference", "openai_like",
+})
+
+
+def _provider_of(model: str) -> str:
+    """The provider prefix of a chain entry ('' when the entry is bare)."""
+    return model.split("/", 1)[0].strip().lower() if "/" in model else ""
+
+
+def _api_key_for(model: str) -> str | None:
+    """The configured key for a litellm entry, by provider prefix."""
+    return {
+        "openai": settings.openai_api_key,
+        "anthropic": settings.anthropic_api_key,
+    }.get(_provider_of(model))
+
+
+def _complete_claude_cli(model: str, system_prompt_file: Path, user_message: str) -> str:
+    """Summarize via the `claude` CLI on subscription billing (no API key).
+
+    Two guards here are load-bearing, not tuning:
+
+    * API keys are stripped from the child environment. With them set, the CLI
+      bills the metered API instead of the subscription — the same reason
+      worker.sh unsets them.
+    * Tools are disabled and the child runs in a scratch cwd. `claude -p` is an
+      agent: left alone it will load skills and read files, which (a) breaks the
+      no-external-lookup premise the summarize prompt is written against, and
+      (b) hands file/shell access to an agent processing untrusted transcript
+      text. A repo cwd would also pull that repo's CLAUDE.md into the job.
     """
-    openai = ("openai", settings.openai_model, settings.openai_api_key)
-    # The "anthropic/" prefix forces litellm to route to Anthropic even for
-    # model IDs newer than its built-in map (e.g. claude-haiku-4-5).
-    anthropic = (
-        "anthropic",
-        f"anthropic/{settings.anthropic_model}",
-        settings.anthropic_api_key,
-    )
+    alias = model[len(CLAUDE_CLI_PREFIX):].strip()
+    if not alias:
+        raise ValueError(f"No model alias in {model!r} (expected e.g. claude-cli/opus)")
 
-    mode = (settings.llm_mode or "openai").strip().lower()
-    if mode == "anthropic":
-        return [anthropic]
-    if mode == "both":
-        return [openai, anthropic]
-    return [openai]  # default / "openai"
+    binary = shutil.which(settings.claude_cli_path) or settings.claude_cli_path
+
+    env = {k: v for k, v in os.environ.items()
+           if k not in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY")}
+
+    with tempfile.TemporaryDirectory(prefix="v2mdnotes-summary-") as neutral_cwd:
+        proc = subprocess.run(
+            [
+                binary, "-p",
+                "--model", alias,
+                "--system-prompt-file", str(system_prompt_file),
+                "--disallowedTools", settings.claude_cli_disallowed_tools,
+            ],
+            input=user_message,
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=neutral_cwd,
+            timeout=settings.claude_cli_timeout,
+        )
+
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout or "").strip()[:400]
+        raise RuntimeError(f"claude CLI exited {proc.returncode}: {detail}")
+
+    content = (proc.stdout or "").strip()
+    if not content:
+        raise ValueError("claude CLI returned an empty summary.")
+    return content
 
 
-def _complete(model: str, api_key: str, system_prompt: str, user_message: str) -> str:
+def _complete(model: str, api_key: str | None, system_prompt: str, user_message: str) -> str:
     """Single litellm call; raises on empty output so the caller can fall back."""
     response = litellm.completion(
         model=model,
@@ -67,8 +117,9 @@ def generate_summary(transcript: TranscriptResult) -> SummaryResult:
     """
     Generates a summary for a given transcript using an LLM.
 
-    Provider selection is controlled by settings.llm_mode ("openai", "anthropic",
-    or "both" for OpenAI-first-with-Anthropic-fallback). The full raw transcript
+    Backends are tried in settings.llm_models order. That list is a FAILOVER
+    chain, not a quality ladder — entry 1 does essentially all the work and
+    later entries fire only when an earlier one errors. The full raw transcript
     is appended to the end of the summary.
 
     If the transcript has no segments (e.g. a narration-free/music-only or silent
@@ -97,17 +148,35 @@ def generate_summary(transcript: TranscriptResult) -> SummaryResult:
     # 2. Prepare the user message (the full transcript)
     user_message = transcript.markdown_content
 
-    # 3. Try each configured provider in order, falling back on failure.
+    # 3. Walk the failover chain in order, falling back on failure.
     errors: list[str] = []
-    for provider, model, api_key in _provider_chain():
-        if not (api_key or "").strip():
-            errors.append(f"{provider}: no API key configured")
-            continue
+    for model in settings.llm_models:
+        provider = _provider_of(model) or "unknown"
         try:
-            llm_output = _complete(model, api_key, system_prompt, user_message)
+            if model.startswith(CLAUDE_CLI_PREFIX):
+                # Subscription CLI: authenticates from the keychain, no API key.
+                llm_output = _complete_claude_cli(
+                    model, settings.prompt_file, user_message
+                )
+            elif provider in LOCAL_PROVIDERS:
+                # Local models need no key, so nothing except this gate stops a
+                # chain from silently falling through to a much weaker model.
+                if not settings.allow_local_models:
+                    errors.append(
+                        f"{model}: local models disabled "
+                        f"(set ALLOW_LOCAL_MODELS=true to enable)"
+                    )
+                    continue
+                llm_output = _complete(model, None, system_prompt, user_message)
+            else:
+                api_key = _api_key_for(model)
+                if not (api_key or "").strip():
+                    errors.append(f"{model}: no API key configured")
+                    continue
+                llm_output = _complete(model, api_key, system_prompt, user_message)
         except Exception as e:  # noqa: BLE001 - record and try the next provider
-            errors.append(f"{provider} ({model}): {e}")
-            print(f"Summarizer: {provider} failed ({e}); trying next provider if any.")
+            errors.append(f"{model}: {e}")
+            print(f"Summarizer: {model} failed ({e}); trying next provider if any.")
             continue
 
         # Append the full transcript (raw full_text, no timestamps) to the summary.
