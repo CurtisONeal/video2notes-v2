@@ -23,14 +23,13 @@ Two deliberate restrictions:
 import datetime as dt
 import json
 import re
-import urllib.parse
-import urllib.request
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from video2mdnotes.config import settings
 from video2mdnotes.logger import logger
 from video2mdnotes.core.downloader import sanitize_filename
+from video2mdnotes.core.webfetch import fetch_text
 from video2mdnotes.core.transcriber import Segment, TranscriptResult, generate_markdown
 
 # json3 first: it carries explicit start/duration per cue and needs no timestamp
@@ -55,11 +54,8 @@ _CJK_CHARS_PER_WORD = 2
 # runs, or an entire unspaced sentence would score as a single "word".
 _WORD = re.compile(r"[^\W\d_]{2,}", re.UNICODE)
 
-# Caption URLs come from third-party page metadata, so the scheme is not ours to
-# trust: urllib happily opens file:// and would read local files into the
-# transcript (and from there into an archived summary).
-_ALLOWED_SCHEMES = ("http", "https")
-# Hard cap so an oversized or hostile response cannot exhaust memory.
+# Hard cap so an oversized or hostile response cannot exhaust memory. The
+# http/https restriction lives in core/webfetch.py, shared with embed scraping.
 _MAX_CAPTION_BYTES = 8 * 1024 * 1024
 
 
@@ -198,24 +194,8 @@ def parse_srt_vtt(raw: str) -> List[Segment]:
 
 
 def _fetch(url: str) -> str:
-    """Fetch a caption track over http(s) only, with a hard size cap.
-
-    The URL is third-party metadata, not ours. Without the scheme check urllib
-    would open `file://` and read a local file straight into the transcript —
-    and from there into a summary archived on disk.
-    """
-    scheme = urllib.parse.urlparse(url).scheme.lower()
-    if scheme not in _ALLOWED_SCHEMES:
-        raise ValueError(f"Refusing caption URL with scheme {scheme!r}")
-
-    request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(request, timeout=30) as response:
-        # Read one byte past the cap so an oversized body is detected, not
-        # silently truncated into a plausible-looking partial transcript.
-        raw = response.read(_MAX_CAPTION_BYTES + 1)
-    if len(raw) > _MAX_CAPTION_BYTES:
-        raise ValueError(f"Caption track exceeds {_MAX_CAPTION_BYTES} bytes")
-    return raw.decode("utf-8", errors="replace")
+    """Fetch a caption track. Scheme and size restrictions live in webfetch."""
+    return fetch_text(url, max_bytes=_MAX_CAPTION_BYTES)
 
 
 def transcript_from_captions(

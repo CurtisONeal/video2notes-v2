@@ -266,7 +266,7 @@ def test_fetch_rejects_oversized_response():
         def __enter__(self): return self
         def __exit__(self, *a): return False
 
-    with patch("video2mdnotes.core.captions.urllib.request.urlopen", return_value=_Resp()):
+    with patch("video2mdnotes.core.webfetch.urllib.request.urlopen", return_value=_Resp()):
         with pytest.raises(ValueError, match="exceeds"):
             _fetch("https://example.test/huge.vtt")
 

@@ -7,6 +7,7 @@ import yt_dlp
 
 from video2mdnotes.config import settings
 from video2mdnotes.logger import logger
+from video2mdnotes.core.embeds import scrape_embed_urls
 
 class SourceInfo(BaseModel):
     """Metadata for one video, gathered without downloading any audio.
@@ -49,26 +50,55 @@ def sanitize_filename(name: str) -> str:
     name = re.sub(r'[^a-z0-9_]', '', name)
     return name
 
-def probe_source(url: str) -> List[SourceInfo]:
+def probe_source(url: str, allow_embed_scrape: bool = True) -> List[SourceInfo]:
     """
     Gathers metadata and caption availability WITHOUT downloading any audio.
 
     Split out from download_audio() so the caller can check for a usable caption
     track before paying for an audio download and a Whisper run.
 
+    If yt-dlp cannot handle the URL at all and SCRAPE_PAGE_EMBEDS is on, the page
+    is fetched once and any embedded video URLs are probed instead. That covers
+    course pages and blogs whose player is injected by JavaScript, which yt-dlp's
+    generic extractor cannot see.
+
     Args:
-        url: The URL of the video or playlist to probe.
+        url: The URL of the video, playlist, or containing page to probe.
+        allow_embed_scrape: Internal. False when already probing a scraped URL,
+            so a page of embeds cannot recurse into another round of scraping.
 
     Returns:
         A list of SourceInfo objects (one per video; playlists yield many).
     """
-    # Adding extractor_args to mimic an Android client, which can be more reliable for playlists.
-    ydl_opts_info = {
-        'quiet': True,
-        'extractor_args': {'youtube': {'player_client': ['android']}}
-    }
-    with yt_dlp.YoutubeDL(ydl_opts_info) as ydl:
-        info = ydl.extract_info(url, download=False)
+    # No player_client override. This used to force the Android client "for
+    # playlist reliability", but YouTube now requires a GVS PO Token for that
+    # client, so its formats 403 on download — measured 2026-08-16: android
+    # exposed 1 usable audio format against 5 on the defaults, and half a real
+    # course run failed with HTTP 403 because of it. Playlists were re-verified
+    # without it.
+    ydl_opts_info = {'quiet': True}
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts_info) as ydl:
+            info = ydl.extract_info(url, download=False)
+    except yt_dlp.utils.DownloadError as e:
+        if not (allow_embed_scrape and settings.scrape_page_embeds):
+            raise
+        logger.info(f"yt-dlp cannot handle {url} directly; looking for embedded videos.")
+        embed_urls = scrape_embed_urls(url)
+        if not embed_urls:
+            raise e
+
+        sources: List[SourceInfo] = []
+        for embed_url in embed_urls:
+            try:
+                # allow_embed_scrape=False: probe the embed itself, never scrape
+                # another page from it.
+                sources.extend(probe_source(embed_url, allow_embed_scrape=False))
+            except Exception as inner:  # noqa: BLE001 - one bad embed is not fatal
+                logger.warning(f"Skipping embedded video {embed_url}: {inner}")
+        if not sources:
+            raise e
+        return sources
 
     # Determine if the result is a playlist or a single video
     if 'entries' in info:

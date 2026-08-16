@@ -91,6 +91,13 @@ class Settings(BaseSettings):
     # another language can still be worth taking captions from.
     captions_lang: str = ""
 
+    # When yt-dlp cannot handle a URL at all, fetch the page once and probe any
+    # embedded video URLs found in it. Covers course pages and blogs whose
+    # player is injected by JavaScript. Never logs in, runs no JavaScript, and
+    # defeats no access control — an anonymous fetch either exposes embeds or
+    # yields nothing.
+    scrape_page_embeds: bool = True
+
     # faster-whisper Configuration
     fw_model: str = "medium"
     fw_compute: str = "auto" # auto, int8, float16, int8_float16

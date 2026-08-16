@@ -280,6 +280,41 @@ fails over normally, and one bad video no longer abandons the rest of a
 playlist. Every run ends with a ledger of summarized / skipped / failed, and
 names the video it stopped on.
 
+### Non-YouTube sources: pages that embed video
+
+yt-dlp handles many sites directly. When it cannot handle a URL at all, the
+pipeline fetches the page once and probes any embedded video URLs it finds,
+rather than giving up:
+
+```
+$ ... main.py https://anthropic.skilljar.com/claude-code-101
+ERROR: Unsupported URL: https://anthropic.skilljar.com/claude-code-101
+yt-dlp cannot handle that URL directly; looking for embedded videos.
+Found 8 embedded video(s) — processing each.
+```
+
+This exists because yt-dlp's generic extractor only sees markup present in the
+served HTML. Course platforms commonly inject the player with JavaScript, so a
+page whose lessons are perfectly ordinary public YouTube videos still reports
+"Unsupported URL". Recognised: YouTube (`/embed/`, `youtu.be`, `watch?v=`,
+`youtube-nocookie`) and Vimeo. Results are de-duplicated, kept in document order
+(usually lesson order), and capped at 25 per page.
+
+**What this is not.** It does not log in, execute JavaScript, or work around any
+access control. It performs one ordinary anonymous fetch — if a page does not
+serve embed URLs to an anonymous visitor, it yields nothing and the original
+yt-dlp error stands. Content behind a login stays behind that login.
+
+Because this widens the set of third-party URLs reaching the fetcher, the same
+restrictions as caption fetching apply, in shared code (`core/webfetch.py`):
+**http/https only** — `urllib` will otherwise open `file://` and read local files
+into a transcript — and a hard size cap. Disable the whole behavior with
+`SCRAPE_PAGE_EMBEDS=false`.
+
+Note that embedded course video often has **auto-captions only**, in which case
+captions-first correctly declines and Whisper runs. Captions-first's hit rate
+depends entirely on whether the publisher writes real captions.
+
 ### Summarization behavior
 `summarize_prompt.txt` is domain-adaptive: it detects whether the source content is
 technical (programming/ML/data/architecture) or Aikido/martial arts, and interprets each
