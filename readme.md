@@ -315,6 +315,63 @@ Note that embedded course video often has **auto-captions only**, in which case
 captions-first correctly declines and Whisper runs. Captions-first's hit rate
 depends entirely on whether the publisher writes real captions.
 
+### Visual content: video that teaches on screen
+
+Some instructional video carries its substance in the pixels — slides, code
+screencasts, tables, UI walkthroughs, animated explainers. The audio pipeline
+cannot see any of it; on a narration-free product video it correctly reports
+"No speech detected" while the actual content sits on screen.
+
+Enable with `EXTRACT_FRAMES=true`. It is **off by default because the second
+tier costs money.**
+
+#### How it works — two tiers with very different economics
+
+1. **Scene detection** (`ffmpeg`) samples a frame only when the picture
+   materially changes, then a perceptual hash drops near-duplicates. This is
+   what makes the rest affordable: a 19-minute video becomes ~24 distinct
+   images, not thousands of frames.
+2. **Local OCR** reads every keyframe. Free, offline, no tokens.
+3. **A vision model** is called *only* for frames whose OCR yields less than
+   `VLM_ESCALATE_BELOW_WORDS` real words — i.e. the picture, not the text, is
+   carrying the meaning. Capped at `VLM_MAX_FRAMES` per video.
+
+Results land in the summary as a `## Visual Content` section with embedded,
+relative-linked images under `frames/`, so the run directory stays portable.
+OCR text and model descriptions are labelled separately and carry a
+`_source:_` line — a machine reading of on-screen text and a model's
+interpretation of a diagram are different kinds of evidence.
+
+#### ⚠️ Local OCR is macOS-only
+
+OCR uses the **macOS Vision framework** (`pip install -e '.[ocr]'`). It is free,
+fast, and good on code and UI — but it does not exist on Linux or Windows.
+
+**On other platforms every keyframe escalates to the vision model**, turning a
+near-free feature into metered spend per frame. The pipeline warns loudly when
+this happens. Non-macOS collaborators should either leave `EXTRACT_FRAMES=false`,
+set `VLM_ENABLED=false` (frames extracted, nothing read), or accept the cost.
+Substituting Tesseract or PaddleOCR would restore the free tier; neither is
+wired up.
+
+#### Cost
+
+The vision tier **cannot use the `claude-cli` subscription backend** — that runs
+with `Read` disabled as the prompt-injection guard, and images cannot be passed
+without reopening it. Vision is always metered API.
+
+Measured on a 19-minute animated explainer (24 keyframes after de-duplication,
+all of which escalated because the content is diagrams rather than text):
+
+| `VLM_MODEL` | Cost for that video |
+|---|---|
+| `anthropic/claude-haiku-4-5` | ~$0.11 |
+| `anthropic/claude-opus-4-8` | ~$0.57 |
+
+`VLM_MAX_FRAMES=15` caps it further. **Savings depend entirely on content:** a
+slide deck of prose is mostly handled by free OCR, while a diagram-heavy
+explainer escalates nearly everything — that measured run was the worst case.
+
 ### Summarization behavior
 `summarize_prompt.txt` is domain-adaptive: it detects whether the source content is
 technical (programming/ML/data/architecture) or Aikido/martial arts, and interprets each

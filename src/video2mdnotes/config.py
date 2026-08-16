@@ -98,6 +98,48 @@ class Settings(BaseSettings):
     # yields nothing.
     scrape_page_embeds: bool = True
 
+    # Visual Content Extraction (off by default — the VLM tier costs money)
+    #
+    # Some instructional video carries its substance on screen, not in the
+    # audio. This samples keyframes at scene changes, reads them with local OCR,
+    # and escalates only the frames OCR cannot explain to a vision model.
+    extract_frames: bool = False
+    # ffmpeg scene-change sensitivity (0-1). Lower catches more transitions.
+    # 0.15 measured 2026-08-16: 0.3 is tuned for hard slide cuts and yielded
+    # only 2 frames from a 19-minute animated explainer, while 0.15 yielded 60
+    # raw / 24 after de-duplication. Continuous animation has no hard cuts, so
+    # err low and let the perceptual-hash dedupe absorb the over-firing.
+    frame_scene_threshold: float = 0.15
+    frame_max: int = 40
+    # Perceptual-hash distance below which two frames count as the same slide.
+    # Screencasts over-fire scene detection on cursor movement and typing.
+    frame_dedupe_threshold: int = 6
+    frame_video_height: int = 720
+    frame_extract_timeout: int = 600
+    ffmpeg_path: str = "ffmpeg"
+
+    # OCR runs on every frame: free and local, so there is no reason not to.
+    #   "auto" -> macOS Vision framework when available, otherwise skip
+    #   "none" -> disable OCR (every frame escalates to the vision model)
+    # NOTE: local OCR is macOS-only. On Linux/Windows this degrades to
+    # vision-model-only, which is metered spend — see readme.md.
+    ocr_backend: str = "auto"
+    ocr_min_confidence: float = 0.4
+
+    # Vision-model tier. This CANNOT use the claude-cli subscription backend:
+    # that runs with Read disabled as the prompt-injection guard, and images
+    # cannot be passed without reopening it. Vision is metered API spend.
+    vlm_enabled: bool = True
+    # Opus for depth, Haiku for ~15x lower cost. Roughly $0.72 vs $0.05 per
+    # video at ~30 frames; both halve again via the Batch API.
+    vlm_model: str = "anthropic/claude-opus-4-8"
+    # Frames whose OCR yields fewer real words than this are treated as
+    # picture-carrying (charts, diagrams, UI) and escalated.
+    vlm_escalate_below_words: int = 12
+    # Hard ceiling on escalations per video, so one dense deck cannot run away
+    # with the bill.
+    vlm_max_frames: int = 15
+
     # faster-whisper Configuration
     fw_model: str = "medium"
     fw_compute: str = "auto" # auto, int8, float16, int8_float16

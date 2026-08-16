@@ -13,6 +13,8 @@ from video2mdnotes.core.downloader import DownloadResult, fetch_audio, probe_sou
 from video2mdnotes.core.transcriber import transcribe_audio, build_initial_prompt
 from video2mdnotes.core.summarizer import generate_summary, SubscriptionExhausted
 from video2mdnotes.core.captions import transcript_from_captions
+from video2mdnotes.core import frames as frames_mod
+from video2mdnotes.core import visuals
 
 app = typer.Typer(help="Video to Markdown Notes Pipeline")
 console = Console()
@@ -226,8 +228,35 @@ def process(
             transcript_path = transcripts_dir / f"{safe_title}.md"
             transcript_path.write_text(transcript_result.markdown_content, encoding="utf-8")
 
+            # 3b. Visual content — opt-in; the vision tier is metered spend.
+            visual_markdown = ""
+            if settings.extract_frames:
+                logger.info("Extracting visual content from keyframes...")
+                try:
+                    video_file = frames_mod.download_video(source.url, project_dir / "_video")
+                    if video_file:
+                        keyframes = frames_mod.extract_and_dedupe(
+                            video_file, project_dir / "frames"
+                        )
+                        readings = visuals.read_frames(keyframes)
+                        visual_markdown = visuals.render_markdown(readings)
+                        video_file.unlink(missing_ok=True)
+                        shutil.rmtree(project_dir / "_video", ignore_errors=True)
+                except Exception as e:  # noqa: BLE001 - enrichment is never fatal
+                    logger.warning(f"Visual extraction failed: {e}")
+
             summary_path = summaries_dir / f"{safe_title}.summary.md"
-            summary_path.write_text(summary_result.summary_text, encoding="utf-8")
+            summary_text = summary_result.summary_text
+            if visual_markdown:
+                # Before the appended raw transcript, so the notes read
+                # summary -> visuals -> transcript.
+                marker = "\n\n## Transcript\n"
+                if marker in summary_text:
+                    head, _, tail = summary_text.partition(marker)
+                    summary_text = f"{head}\n\n{visual_markdown}{marker}{tail}"
+                else:
+                    summary_text = f"{summary_text}\n\n{visual_markdown}"
+            summary_path.write_text(summary_text, encoding="utf-8")
 
             url_file = project_dir / "original_url.txt"
             url_file.write_text(download_result.url, encoding="utf-8")

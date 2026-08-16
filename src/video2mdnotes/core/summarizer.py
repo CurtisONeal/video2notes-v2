@@ -89,12 +89,24 @@ def _provider_of(model: str) -> str:
     return model.split("/", 1)[0].strip().lower() if "/" in model else ""
 
 
+# .env.example ships these as literal placeholders. They are truthy, so a bare
+# `if not key` check passes them straight through to the provider and the run
+# fails with a confusing auth error instead of "no key configured".
+_PLACEHOLDER_KEYS = frozenset({"your_key_here", "sk-...", "changeme", ""})
+
+
+def real_key(value: str | None) -> str | None:
+    """A configured key, or None if it is absent or a placeholder."""
+    value = (value or "").strip()
+    return None if value in _PLACEHOLDER_KEYS else value
+
+
 def _api_key_for(model: str) -> str | None:
     """The configured key for a litellm entry, by provider prefix."""
-    return {
+    return real_key({
         "openai": settings.openai_api_key,
         "anthropic": settings.anthropic_api_key,
-    }.get(_provider_of(model))
+    }.get(_provider_of(model)))
 
 
 def _complete_claude_cli(model: str, system_prompt_file: Path, user_message: str) -> str:

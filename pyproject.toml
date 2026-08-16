@@ -17,6 +17,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# macOS-only: the Vision-framework OCR backend and perceptual-hash
+# de-duplication used by visual content extraction (EXTRACT_FRAMES=true).
+# Kept out of the base deps because these will not install cleanly on
+# Linux/Windows — see "Visual content" in readme.md.
+ocr = ["ocrmac>=1.0", "imagehash>=4.3"]
+
 dev = [
     "pytest>=8.0.0",
     "ruff>=0.3.0",
