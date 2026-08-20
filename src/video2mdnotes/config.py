@@ -8,24 +8,163 @@ class Settings(BaseSettings):
     """
     Application settings loaded from .env file and environment variables.
     """
-    # LLM Provider Configuration
+    # LLM Provider Configuration (summarization only — transcription is local)
     #
-    # llm_mode selects the summarization provider strategy (env: LLM_MODE):
-    #   "openai"    (A) -> OpenAI only
-    #   "anthropic" (B) -> Anthropic only
-    #   "both"          -> OpenAI first, fall back to Anthropic on failure
-    # Per-provider models are chosen with openai_model / anthropic_model, so you
-    # can swap in a smarter or cheaper model per provider without code changes.
-    llm_mode: str = "openai"
-    openai_model: str = "gpt-4o-mini"
-    anthropic_model: str = "claude-haiku-4-5"
+    # llm_models is an ordered FAILOVER chain, not a quality ladder: entry 1 does
+    # essentially all the work, and later entries fire only when an earlier one
+    # *errors*. Putting a cheap model first makes it your summarizer.
+    #
+    # Three backend kinds are understood, by prefix:
+    #   "claude-cli/<alias>"  -> subprocess to the `claude` CLI, authenticated
+    #                            with the logged-in subscription (no API key, no
+    #                            metered billing). Aliases: opus/sonnet/haiku.
+    #   "openai/…", "anthropic/…"
+    #                         -> metered REST via litellm; needs the matching key.
+    #   "ollama/…", "lm_studio/…", …
+    #                         -> local/self-hosted via litellm; needs NO key, so
+    #                            it is gated behind allow_local_models (below).
+    llm_models: list[str] = [
+        "claude-cli/opus",     # subscription, deepest analysis
+        "claude-cli/sonnet",   # subscription, faster fallback
+        "openai/gpt-4o",       # metered — only if the subscription is unavailable
+    ]
+
+    # Local models need no API key. Without this gate a misconfigured chain could
+    # silently fall through to a much weaker model and emit notes that look fine,
+    # so enabling local summarization must be an explicit, deliberate choice.
+    allow_local_models: bool = False
+
+    # What to do when the subscription backend runs out of capacity mid-run.
+    #   "wait"    -> alert, sleep until the limit resets, retry the same video.
+    #                Default, because an unattended run (e.g. a research agent
+    #                that cannot answer a prompt) must NOT start spending money
+    #                just because nobody was there to say no. It waits for the
+    #                capacity that is already paid for.
+    #   "metered" -> continue on the paid backends in the chain.
+    #   "local"   -> continue, but only on local backends (needs
+    #                ALLOW_LOCAL_MODELS and a local entry in LLM_MODELS).
+    #   "stop"    -> stop cleanly; finished videos are kept and skipped on resume.
+    #   "ask"     -> prompt once, then apply that answer for the rest of the run.
+    on_exhaustion: str = "wait"
+    # Used only when the CLI does not report a reset time in its error output.
+    exhaustion_wait_seconds: int = 5 * 60 * 60
+    # Upper bound, so a misparsed reset time cannot park a run for days.
+    exhaustion_max_wait_seconds: int = 12 * 60 * 60
+
+    # `claude` CLI used by the claude-cli/ backend. Resolved on PATH if left bare.
+    claude_cli_path: str = "claude"
+    # `claude -p` is an AGENT, not a completion endpoint: by default it can load
+    # skills, search the web, and read files. Transcripts are untrusted
+    # third-party content, so tools are disabled — see readme.md.
+    claude_cli_disallowed_tools: str = (
+        "Skill,WebSearch,WebFetch,Read,Bash,Glob,Grep,Task,Agent,Edit,Write"
+    )
+    claude_cli_timeout: int = 900
+
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
 
     # Deprecated: retained for backward-compat with existing .env / docker-compose
-    # (LLM_PROVIDER / LLM_MODEL). The summarizer now uses llm_mode + *_model above.
+    # (LLM_MODE / LLM_PROVIDER / LLM_MODEL, openai_model / anthropic_model).
+    # The summarizer now uses the llm_models chain above.
+    llm_mode: str = "openai"
+    openai_model: str = "gpt-4o-mini"
+    anthropic_model: str = "claude-haiku-4-5"
     llm_provider: str = "openai"
     llm_model: str = "gpt-4o-mini"
+
+    # Captions-first Configuration
+    #
+    # When a source ships a human-authored transcript, using it skips both the
+    # audio download and the ~10-minute Whisper run. Only manual tracks are ever
+    # used — machine `automatic_captions` are ASR without our vocabulary hint,
+    # so Whisper is the better fallback. See core/captions.py.
+    captions_first: bool = True
+    # A caption track must yield at least this many word-equivalents, or it is
+    # treated as unusable (music videos return cues that are entirely "[♪♪♪]").
+    # CJK text is counted by character, since it is not space-delimited.
+    captions_min_words: int = 20
+    # Ordered, comma-separated language preference for caption tracks, e.g.
+    # "en,ja" or "ja,any". The token "any" accepts whatever manual track the
+    # source ships. Empty falls back to FW_LANG. Kept separate from FW_LANG
+    # because that setting tells Whisper what to expect, whereas a source in
+    # another language can still be worth taking captions from.
+    captions_lang: str = ""
+
+    # When yt-dlp cannot handle a URL at all, fetch the page once and probe any
+    # embedded video URLs found in it. Covers course pages and blogs whose
+    # player is injected by JavaScript. Never logs in, runs no JavaScript, and
+    # defeats no access control — an anonymous fetch either exposes embeds or
+    # yields nothing.
+    scrape_page_embeds: bool = True
+
+    # Visual Content Extraction (off by default — the VLM tier costs money)
+    #
+    # Some instructional video carries its substance on screen, not in the
+    # audio. This samples keyframes at scene changes, reads them with local OCR,
+    # and escalates only the frames OCR cannot explain to a vision model.
+    extract_frames: bool = False
+    # ffmpeg scene-change sensitivity (0-1). Lower catches more transitions.
+    # 0.15 measured 2026-08-16: 0.3 is tuned for hard slide cuts and yielded
+    # only 2 frames from a 19-minute animated explainer, while 0.15 yielded 60
+    # raw / 24 after de-duplication. Continuous animation has no hard cuts, so
+    # err low and let the perceptual-hash dedupe absorb the over-firing.
+    frame_scene_threshold: float = 0.15
+    frame_max: int = 40
+    # Perceptual-hash distance below which two frames count as the same slide.
+    # Screencasts over-fire scene detection on cursor movement and typing.
+    frame_dedupe_threshold: int = 6
+    frame_video_height: int = 720
+    frame_extract_timeout: int = 600
+    ffmpeg_path: str = "ffmpeg"
+
+    # OCR runs on every frame: free and local, so there is no reason not to.
+    #   "auto" -> macOS Vision framework when available, otherwise skip
+    #   "none" -> disable OCR (every frame escalates to the vision model)
+    # NOTE: local OCR is macOS-only. On Linux/Windows this degrades to
+    # vision-model-only, which is metered spend — see readme.md.
+    ocr_backend: str = "auto"
+    ocr_min_confidence: float = 0.4
+
+    # Vision-model tier. This CANNOT use the claude-cli subscription backend:
+    # that runs with Read disabled as the prompt-injection guard, and images
+    # cannot be passed without reopening it. Vision is metered API spend.
+    vlm_enabled: bool = True
+    # Opus for depth, Haiku for ~15x lower cost. Roughly $0.72 vs $0.05 per
+    # video at ~30 frames; both halve again via the Batch API.
+    vlm_model: str = "anthropic/claude-opus-4-8"
+    # Frames whose OCR yields fewer real words than this are treated as
+    # picture-carrying (charts, diagrams, UI) and escalated.
+    vlm_escalate_below_words: int = 12
+    # Hard ceiling on escalations per video, so one dense deck cannot run away
+    # with the bill. Which frames get spent on is decided by core/ranking.py,
+    # not by chronological order — otherwise the budget is exhausted on the
+    # intro and the conclusion is never seen.
+    vlm_max_frames: int = 15
+
+    # Ranking weights for choosing WHICH eligible frames to spend the budget on.
+    # All three signals are free — computed from data already on hand.
+    # Dwell dominates by design: how long a frame stayed on screen is the
+    # strongest available proxy for "this was deliberate content".
+    rank_weight_dwell: float = 0.45
+    rank_weight_uniqueness: float = 0.30
+    rank_weight_audio_cue: float = 0.25
+    # Phrases that mean "the speaker is pointing at the screen". Only usable
+    # when there is narration, which is why this ranks rather than triggers.
+    rank_cue_phrases: str = (
+        "as you can see,look at,here we have,this shows,notice that,"
+        "on the screen,this diagram,this chart,this table,shown here,"
+        "take a look,over here,in this figure,notice how"
+    )
+    # Seconds either side of a frame in which a cue phrase counts as related.
+    rank_cue_window: float = 8.0
+    # The last keyframe's dwell is capped at this multiple of the LONGEST gap
+    # actually observed. Without it, a run truncated by FRAME_MAX credits its
+    # final frame with every remaining second of the video, and that outlier
+    # flattens every other frame's score. Multiple of the longest rather than
+    # the median because transition-heavy content has a ~1s median, which would
+    # crush a genuinely held closing slide.
+    rank_final_dwell_clamp: float = 1.0
 
     # faster-whisper Configuration
     fw_model: str = "medium"

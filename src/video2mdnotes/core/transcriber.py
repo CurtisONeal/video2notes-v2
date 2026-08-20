@@ -41,6 +41,10 @@ class TranscriptResult(BaseModel):
     markdown_content: str
     model_name: str
     generated_at: dt.datetime
+    # Where the text came from. Whisper output and a human-authored caption track
+    # are not interchangeable evidence, so provenance is recorded rather than
+    # inferred from model_name. See core/captions.py.
+    transcript_source: str = "whisper"
 
 def format_timestamp(seconds: float) -> str:
     """Formats seconds into HH:MM:SS.mmm string."""
@@ -48,12 +52,26 @@ def format_timestamp(seconds: float) -> str:
     ms = int((seconds - s) * 1000)
     return f"{str(dt.timedelta(seconds=s))}.{ms:03d}"
 
-def generate_markdown(title: str, source_file: str, segments: List[Segment], language: str, model: str) -> str:
-    """Generates the Markdown formatted transcript."""
+def generate_markdown(
+    title: str,
+    source_file: str,
+    segments: List[Segment],
+    language: str,
+    model: str,
+    transcript_source: str = "whisper",
+) -> str:
+    """Generates the Markdown formatted transcript.
+
+    `transcript_source` records how the text was obtained ("whisper" or
+    "captions (manual, <lang>)"). A reader — and anyone auditing a summary built
+    on it — should not have to guess whether they are looking at ASR output or a
+    human-authored transcript.
+    """
     lines = []
     lines.append("---")
     lines.append(f'title: "{title}"')
     lines.append(f"source: {source_file}")
+    lines.append(f"transcript_source: {transcript_source}")
     lines.append(f"model: {model}")
     lines.append(f"language: {language}")
     lines.append(f"generated_at: {dt.datetime.now().isoformat(timespec='seconds')}")

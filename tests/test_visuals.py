@@ -1,0 +1,123 @@
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
+from video2mdnotes.config import settings
+from video2mdnotes.core.frames import Keyframe
+from video2mdnotes.core.summarizer import real_key
+from video2mdnotes.core.visuals import (
+    FrameReading,
+    needs_vision_model,
+    read_frames,
+    render_markdown,
+)
+
+
+@pytest.fixture
+def visual_settings():
+    saved = (settings.vlm_enabled, settings.vlm_model,
+             settings.vlm_escalate_below_words, settings.vlm_max_frames)
+    yield settings
+    (settings.vlm_enabled, settings.vlm_model,
+     settings.vlm_escalate_below_words, settings.vlm_max_frames) = saved
+
+
+# --- Escalation policy: this is what controls the bill ---
+
+def test_text_heavy_frame_does_not_escalate(visual_settings):
+    """A slide that OCR'd into prose is already understood — don't pay for it."""
+    # A real prose slide, not a caption fragment: the threshold exists to
+    # separate "the text IS the content" from "the picture is the content".
+    prose = (
+        "Gradient descent iteratively minimizes the loss function by stepping "
+        "downhill along the negative gradient. The learning rate controls how "
+        "large each step is."
+    )
+    assert needs_vision_model(prose) is False
+
+
+@pytest.mark.parametrize("ocr", ["", "784", "OOO\nOO\n784", "→ 10\n• 00"])
+def test_picture_carrying_frame_escalates(ocr, visual_settings):
+    """Measured real output from a diagram-heavy explainer: OCR yields fragments."""
+    assert needs_vision_model(ocr) is True
+
+
+def test_escalation_respects_frame_budget(tmp_path, visual_settings):
+    """One dense deck must not run away with the bill."""
+    settings.vlm_enabled = True
+    settings.vlm_max_frames = 2
+    frames = []
+    for i in range(5):
+        p = tmp_path / f"frame_{i}.png"
+        p.write_bytes(b"x")
+        frames.append(Keyframe(path=p, timestamp=float(i)))
+
+    with patch("video2mdnotes.core.visuals.ocr_available", return_value=True), \
+         patch("video2mdnotes.core.visuals.ocr_image", return_value=""), \
+         patch("video2mdnotes.core.visuals.describe_image", return_value="a chart") as vlm:
+        read_frames(frames)
+
+    assert vlm.call_count == 2
+
+
+def test_vlm_disabled_never_calls_the_model(tmp_path, visual_settings):
+    settings.vlm_enabled = False
+    p = tmp_path / "f.png"
+    p.write_bytes(b"x")
+
+    with patch("video2mdnotes.core.visuals.ocr_available", return_value=True), \
+         patch("video2mdnotes.core.visuals.ocr_image", return_value="some text"), \
+         patch("video2mdnotes.core.visuals.describe_image") as vlm:
+        read_frames([Keyframe(path=p, timestamp=0.0)])
+
+    vlm.assert_not_called()
+
+
+def test_empty_frames_are_dropped(tmp_path, visual_settings):
+    """A frame yielding neither OCR text nor a description is not worth keeping."""
+    settings.vlm_enabled = False
+    p = tmp_path / "f.png"
+    p.write_bytes(b"x")
+
+    with patch("video2mdnotes.core.visuals.ocr_available", return_value=True), \
+         patch("video2mdnotes.core.visuals.ocr_image", return_value=""):
+        assert read_frames([Keyframe(path=p, timestamp=0.0)]) == []
+
+
+# --- Provenance and rendering ---
+
+def test_markdown_keeps_ocr_and_description_distinguishable():
+    """A machine reading and a model's interpretation are different evidence."""
+    reading = FrameReading(
+        timestamp=42.0, label="0m42s", image_path=Path("frames/frame_0001.png"),
+        ocr_text="784", description="A neural network diagram.",
+        source="ocr+vlm:anthropic/claude-haiku-4-5",
+    )
+    md = render_markdown([reading])
+    assert "**On screen:**" in md
+    assert "**Description:**" in md
+    assert "_source: ocr+vlm:anthropic/claude-haiku-4-5_" in md
+    # Relative link so the run directory stays portable when moved or zipped.
+    assert "](frames/frame_0001.png)" in md
+    assert "[0m42s]" in md
+
+
+def test_markdown_empty_when_nothing_read():
+    assert render_markdown([]) == ""
+
+
+# --- Placeholder key guard ---
+
+@pytest.mark.parametrize("value", ["your_key_here", "", "   ", None, "sk-..."])
+def test_placeholder_keys_resolve_to_none(value):
+    """`.env.example` ships truthy placeholders that would reach the provider."""
+    assert real_key(value) is None
+
+
+def test_real_key_passes_through():
+    assert real_key("sk-ant-real123") == "sk-ant-real123"
+
+
+def test_keyframe_label_formats_position():
+    assert Keyframe(path=Path("x.png"), timestamp=187.0).label == "3m07s"

@@ -41,3 +41,44 @@ def test_download_audio_integration_single_video(tmp_path):
 
     finally:
         settings.temp_dir = original_temp_dir
+
+
+def test_probe_source_skips_unavailable_playlist_entries():
+    """yt-dlp yields None for private/deleted/geo-blocked playlist items.
+
+    One unavailable video in a long playlist must not abort the whole run.
+    """
+    from unittest.mock import MagicMock, patch
+    from video2mdnotes.core.downloader import probe_source
+
+    info = {"entries": [
+        {"title": "First", "webpage_url": "https://w/1"},
+        None,
+        {"title": "Third", "webpage_url": "https://w/3"},
+    ]}
+    ydl = MagicMock()
+    ydl.__enter__.return_value.extract_info.return_value = info
+
+    with patch("video2mdnotes.core.downloader.yt_dlp.YoutubeDL", return_value=ydl):
+        sources = probe_source("https://playlist")
+
+    assert [s.title for s in sources] == ["First", "Third"]
+
+
+def test_probe_source_records_canonical_watch_url():
+    """`url` on a YouTube entry is a signed CDN link that expires."""
+    from unittest.mock import MagicMock, patch
+    from video2mdnotes.core.downloader import probe_source
+
+    info = {"entries": [{
+        "title": "V",
+        "url": "https://rr5---sn-abc.googlevideo.com/videoplayback?expire=123&sig=xyz",
+        "webpage_url": "https://www.youtube.com/watch?v=abc123",
+    }]}
+    ydl = MagicMock()
+    ydl.__enter__.return_value.extract_info.return_value = info
+
+    with patch("video2mdnotes.core.downloader.yt_dlp.YoutubeDL", return_value=ydl):
+        sources = probe_source("https://www.youtube.com/watch?v=abc123")
+
+    assert sources[0].url == "https://www.youtube.com/watch?v=abc123"

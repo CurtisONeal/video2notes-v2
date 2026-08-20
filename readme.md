@@ -34,7 +34,106 @@ This project uses modern Python packaging tools:
 
 ### Prerequisites
 - **Docker**: Docker Desktop (for Mac/Windows) or Docker Engine (for Linux) must be installed and running.
-- **API Key**: You need an API key from an LLM provider (like OpenAI or Anthropic) to generate summaries.
+- **A summarization backend**: either a logged-in `claude` CLI (subscription, no
+  API key), an LLM provider API key, or a local model server. See
+  [Choosing a summarization backend](#choosing-a-summarization-backend) — this is
+  a real setup decision, not a default to skip past.
+
+### Choosing a summarization backend
+
+The model chosen here does **not** affect transcription accuracy at all — but it
+substantially changes how good the notes are, and it is easy to end up with a
+weaker model doing the work without noticing.
+
+#### The pipeline has two separate model steps
+
+| Step | What runs it | Your choice? |
+|---|---|---|
+| **Transcription** (audio → text) | `faster-whisper`, locally on CPU | Model size only (`FW_MODEL`, default `medium`). No API, no key, no network. |
+| **Summarization** (text → notes) | An LLM, via one of the backends below | **Yes — this section.** |
+
+Nothing in this section touches transcription. A "cheaper model" here means
+thinner *notes*, never a worse *transcript*.
+
+#### The chain
+
+`LLM_MODELS` is an ordered **failover** chain, not a quality ladder. Entry 1 does
+essentially all the work; later entries fire only when an earlier one *errors*.
+**Putting a cheap model first makes it your summarizer.** The default:
+
+```
+LLM_MODELS=["claude-cli/opus", "claude-cli/sonnet", "openai/gpt-4o"]
+```
+
+**1. Subscription CLI (`claude-cli/…`) — no metered cost**
+
+Shells out to the `claude` CLI, which authenticates with your logged-in Claude
+subscription (macOS keychain) rather than an API key. Requires the CLI installed
+and logged in. Bounded by your subscription's rate limits, which is exactly why a
+metered entry sits behind it in the default chain. Aliases: `opus`, `sonnet`,
+`haiku`.
+
+**2. Metered API (`openai/…`, `anthropic/…`) — billed per token**
+
+Standard REST via litellm using `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`. No rate
+ceiling, but every run costs money and a full transcript is a large prompt. These
+keys are often shared with other tools on the same machine, so the usage lands on
+the same bill.
+
+**3. Local models (`ollama/…`, `lm_studio/…`) — privacy option, off by default**
+
+```
+ALLOW_LOCAL_MODELS=true
+LLM_MODELS=["ollama/llama3.1", "claude-cli/opus"]
+```
+
+Requires Ollama or LM Studio installed and serving. **Use this when the content
+must not leave the machine** — private recordings, client material, anything
+under NDA. Both the transcription and summarization steps then run entirely
+locally, so a full run touches the network only to fetch the source video.
+
+It is gated behind `ALLOW_LOCAL_MODELS` deliberately: local models need no API
+key, so without the gate a misconfigured chain could silently fall through to a
+much weaker model and emit notes that *look* fine. Expect noticeably shallower
+analysis than the hosted models — `summarize_prompt.txt` was tuned and validated
+against frontier models, and that validation does not carry over.
+
+#### Measured model comparison
+
+Same transcript, same prompt, tools disabled, summarization step only:
+
+| Model | Time | Output | What you get |
+|---|---|---|---|
+| `haiku` | 16s | 3.3 KB | Accurate and faithful. Restates what was said, correct section discipline, little added analysis. |
+| `sonnet` | 35s | 5.5 KB | Balanced. Adds domain framing and some nuance. |
+| `opus` | 54s | 9.1 KB | Different in kind, not just longer — cites timestamp ranges, derives operational consequences the transcript never states, and explicitly names what is *absent* from the source. |
+
+All three produced the same 8 sections and the same 3 correct `- None` answers,
+so structural compliance is not the differentiator — analytical depth is. Use
+`haiku` for bulk or playlist runs where coverage beats insight; `opus` for
+material you actually intend to study.
+
+#### Why tools are disabled on the CLI backend
+
+`claude -p` is an **agent**, not a plain completion endpoint — by default it can
+load skills, search the web, and read files. Left enabled, this backend:
+
+- **Breaks grounding.** Observed live: summarizing a transcript about Claude
+  models, the agent loaded API documentation and wrote confident,
+  documentation-sourced claims into "Fact-Checked Notes" — a section the prompt
+  deliberately instructs the model to *hedge* precisely because it is supposed to
+  have no external lookup (see [Summarization behavior](#summarization-behavior)).
+  Verified and unverified claims become indistinguishable.
+- **Makes runs non-reproducible**, since output depends on what the agent chose
+  to look up that time.
+- **Opens a prompt-injection surface.** Transcripts are untrusted third-party
+  content. An agent with file and shell access, summarizing text an attacker
+  controls, is a bad combination.
+
+So the CLI backend always passes `--disallowedTools` and runs from a scratch
+working directory (a repo cwd would pull that repo's `CLAUDE.md` into an
+unrelated summarization job). Both are configurable but neither should be
+removed.
 
 ### Quick Start
 1.  **Clone the repository:**
@@ -88,6 +187,190 @@ docker compose run --rm app /bin/bash
 
 ### Expected Output
 After a successful run, a new directory will be created in `previous_run_results/` containing the final summary, the raw transcript, the original URL, and (optionally) the downloaded audio file.
+
+### Transcript sourcing (captions-first)
+
+Before downloading any audio, the pipeline probes the source for an existing
+**human-authored** caption track. If it finds a usable one, it uses that and
+skips both the audio download and the Whisper run — on a ~19-minute video that
+is roughly ten minutes of work avoided. Otherwise it downloads audio and
+transcribes locally, exactly as before.
+
+Every transcript records where it came from, in its own front matter:
+
+```yaml
+transcript_source: captions (manual, en)   # or: whisper
+```
+
+ASR output and a human-authored transcript are not interchangeable evidence, so
+this is recorded rather than left to be inferred from the model field.
+
+**Machine captions are never used.** yt-dlp separates human-authored `subtitles`
+from machine `automatic_captions`, and only the former are accepted. Auto-captions
+are ASR *without* the vocabulary hint `build_initial_prompt()` supplies, so using
+them would reintroduce the exact error class that hint exists to fix
+("Claude" → "Cloud"). They are also silently machine-translated — a probe of one
+English video listed `ab` (Abkhazian) among its automatic captions. Local Whisper
+is the better fallback.
+
+**A caption track must prove it carries speech.** Music videos return tracks that
+are entirely `[♪♪♪]` / `[Music]` cues; those pass a naive "are there segments?"
+check and would feed the summarizer garbage it is then obliged to summarize. A
+track yielding fewer than `CAPTIONS_MIN_WORDS` word-equivalents is rejected in
+favour of Whisper. Erring this way only ever costs time, never correctness.
+
+**Language selection.** `CAPTIONS_LANG` is an ordered, comma-separated
+preference — `en,ja` tries English then Japanese. The token `any` accepts
+whatever manual track the source ships, which is how content in an unanticipated
+language stays reachable on an otherwise English install:
+
+```
+CAPTIONS_LANG=en,any
+```
+
+Each entry matches on language prefix, so `en` accepts `en-US`/`en-GB`, with an
+exact match preferred. Empty falls back to `FW_LANG`. It is kept separate from
+`FW_LANG` because that setting tells Whisper what to expect, whereas a source in
+another language can still be worth taking captions from.
+
+Japanese, Chinese and Korean are **not** space-delimited, so the speech guard
+counts CJK characters directly (roughly two characters per word-equivalent)
+rather than counting spaced words — otherwise every CJK track would score zero
+and be rejected as "no speech."
+
+Disable the whole behavior with `CAPTIONS_FIRST=false` to always transcribe
+locally.
+
+### Long runs: resuming and running out of capacity
+
+A playlist of long videos is many large prompts, so a research run can exhaust
+your subscription partway through. Two behaviors exist for that.
+
+**Finished work is never redone.** Any video that already has a summary on disk
+is skipped, matched on title independent of run date. Re-running the same
+command continues where it stopped:
+
+```
+[1/10] Skipping (already summarized): But what is a neural network?...
+[5/10] Processing: Large Language Models explained briefly
+```
+
+Pass `--force` to re-summarize everything anyway — e.g. to redo a playlist with
+a better model.
+
+**Running out of capacity does not silently start costing money.** When the
+subscription backend is exhausted, the chain does **not** fall through to a paid
+backend by default. `--on-exhaustion` controls what happens instead:
+
+| Mode | Behavior |
+|---|---|
+| `wait` *(default)* | Alert, sleep until the limit resets, retry the same video. Uses a reset time from the CLI when it reports one, else `EXHAUSTION_WAIT_SECONDS`. |
+| `metered` | Continue on the paid backends in `LLM_MODELS`. |
+| `local` | Continue on local backends only (needs `ALLOW_LOCAL_MODELS`). Never reaches a paid backend. |
+| `stop` | Stop cleanly. Finished videos are kept and skipped on resume. |
+| `ask` | Prompt once, then apply that answer for the rest of the run. |
+
+`wait` is the default deliberately. An unattended run — a research agent that
+cannot answer a prompt — must not begin spending money merely because nobody was
+there to say no; it waits for capacity already paid for. `ask` degrades to
+`wait`, not to spending, when there is no TTY.
+
+Exhaustion is also distinguished from ordinary failure: a crashed backend still
+fails over normally, and one bad video no longer abandons the rest of a
+playlist. Every run ends with a ledger of summarized / skipped / failed, and
+names the video it stopped on.
+
+### Non-YouTube sources: pages that embed video
+
+yt-dlp handles many sites directly. When it cannot handle a URL at all, the
+pipeline fetches the page once and probes any embedded video URLs it finds,
+rather than giving up:
+
+```
+$ ... main.py https://anthropic.skilljar.com/claude-code-101
+ERROR: Unsupported URL: https://anthropic.skilljar.com/claude-code-101
+yt-dlp cannot handle that URL directly; looking for embedded videos.
+Found 8 embedded video(s) — processing each.
+```
+
+This exists because yt-dlp's generic extractor only sees markup present in the
+served HTML. Course platforms commonly inject the player with JavaScript, so a
+page whose lessons are perfectly ordinary public YouTube videos still reports
+"Unsupported URL". Recognised: YouTube (`/embed/`, `youtu.be`, `watch?v=`,
+`youtube-nocookie`) and Vimeo. Results are de-duplicated, kept in document order
+(usually lesson order), and capped at 25 per page.
+
+**What this is not.** It does not log in, execute JavaScript, or work around any
+access control. It performs one ordinary anonymous fetch — if a page does not
+serve embed URLs to an anonymous visitor, it yields nothing and the original
+yt-dlp error stands. Content behind a login stays behind that login.
+
+Because this widens the set of third-party URLs reaching the fetcher, the same
+restrictions as caption fetching apply, in shared code (`core/webfetch.py`):
+**http/https only** — `urllib` will otherwise open `file://` and read local files
+into a transcript — and a hard size cap. Disable the whole behavior with
+`SCRAPE_PAGE_EMBEDS=false`.
+
+Note that embedded course video often has **auto-captions only**, in which case
+captions-first correctly declines and Whisper runs. Captions-first's hit rate
+depends entirely on whether the publisher writes real captions.
+
+### Visual content: video that teaches on screen
+
+Some instructional video carries its substance in the pixels — slides, code
+screencasts, tables, UI walkthroughs, animated explainers. The audio pipeline
+cannot see any of it; on a narration-free product video it correctly reports
+"No speech detected" while the actual content sits on screen.
+
+Enable with `EXTRACT_FRAMES=true`. It is **off by default because the second
+tier costs money.**
+
+#### How it works — two tiers with very different economics
+
+1. **Scene detection** (`ffmpeg`) samples a frame only when the picture
+   materially changes, then a perceptual hash drops near-duplicates. This is
+   what makes the rest affordable: a 19-minute video becomes ~24 distinct
+   images, not thousands of frames.
+2. **Local OCR** reads every keyframe. Free, offline, no tokens.
+3. **A vision model** is called *only* for frames whose OCR yields less than
+   `VLM_ESCALATE_BELOW_WORDS` real words — i.e. the picture, not the text, is
+   carrying the meaning. Capped at `VLM_MAX_FRAMES` per video.
+
+Results land in the summary as a `## Visual Content` section with embedded,
+relative-linked images under `frames/`, so the run directory stays portable.
+OCR text and model descriptions are labelled separately and carry a
+`_source:_` line — a machine reading of on-screen text and a model's
+interpretation of a diagram are different kinds of evidence.
+
+#### ⚠️ Local OCR is macOS-only
+
+OCR uses the **macOS Vision framework** (`pip install -e '.[ocr]'`). It is free,
+fast, and good on code and UI — but it does not exist on Linux or Windows.
+
+**On other platforms every keyframe escalates to the vision model**, turning a
+near-free feature into metered spend per frame. The pipeline warns loudly when
+this happens. Non-macOS collaborators should either leave `EXTRACT_FRAMES=false`,
+set `VLM_ENABLED=false` (frames extracted, nothing read), or accept the cost.
+Substituting Tesseract or PaddleOCR would restore the free tier; neither is
+wired up.
+
+#### Cost
+
+The vision tier **cannot use the `claude-cli` subscription backend** — that runs
+with `Read` disabled as the prompt-injection guard, and images cannot be passed
+without reopening it. Vision is always metered API.
+
+Measured on a 19-minute animated explainer (24 keyframes after de-duplication,
+all of which escalated because the content is diagrams rather than text):
+
+| `VLM_MODEL` | Cost for that video |
+|---|---|
+| `anthropic/claude-haiku-4-5` | ~$0.11 |
+| `anthropic/claude-opus-4-8` | ~$0.57 |
+
+`VLM_MAX_FRAMES=15` caps it further. **Savings depend entirely on content:** a
+slide deck of prose is mostly handled by free OCR, while a diagram-heavy
+explainer escalates nearly everything — that measured run was the worst case.
 
 ### Summarization behavior
 `summarize_prompt.txt` is domain-adaptive: it detects whether the source content is

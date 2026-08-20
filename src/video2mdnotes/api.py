@@ -4,9 +4,10 @@ from pydantic import BaseModel, HttpUrl
 
 from video2mdnotes.config import settings
 from video2mdnotes.logger import logger
-from video2mdnotes.core.downloader import download_audio
+from video2mdnotes.core.downloader import fetch_audio, probe_source
 from video2mdnotes.core.transcriber import transcribe_audio, build_initial_prompt
 from video2mdnotes.core.summarizer import generate_summary
+from video2mdnotes.core.captions import transcript_from_captions
 import shutil
 import datetime as dt
 
@@ -34,45 +35,61 @@ def process_pipeline(url: str):
     """
     logger.info(f"API: Starting background processing for URL: {url}")
     try:
-        download_results = download_audio(url)
-        logger.success(f"API: Downloaded {len(download_results)} videos.")
+        sources = probe_source(url)
+        logger.success(f"API: Found {len(sources)} videos.")
 
-        for download_result in download_results:
-            logger.info(f"API: Processing: {download_result.title}")
-            initial_prompt = build_initial_prompt(
-                title=download_result.title,
-                tags=download_result.tags,
-                description=download_result.description
-            )
-            transcript_result = transcribe_audio(
-                download_result.audio_path,
-                title=download_result.title,
-                initial_prompt=initial_prompt
-            )
+        for source in sources:
+            logger.info(f"API: Processing: {source.title}")
+
+            # Captions first; Whisper only when no usable manual track exists.
+            transcript_result = None
+            if settings.captions_first:
+                transcript_result = transcript_from_captions(
+                    title=source.title, subtitles=source.subtitles
+                )
+
+            audio_path = None
+            if transcript_result is None:
+                audio_path = fetch_audio(source)
+                initial_prompt = build_initial_prompt(
+                    title=source.title,
+                    tags=source.tags,
+                    description=source.description
+                )
+                transcript_result = transcribe_audio(
+                    audio_path,
+                    title=source.title,
+                    initial_prompt=initial_prompt
+                )
+            logger.info(f"API: Transcript via {transcript_result.transcript_source}")
+
             summary_result = generate_summary(transcript_result)
-            
+
             # Archiving logic (same as CLI)
             from video2mdnotes.core.downloader import sanitize_filename
-            safe_title = sanitize_filename(download_result.title)
+            safe_title = sanitize_filename(source.title)
             date_str = dt.date.today().strftime('%Y%m%d')
             project_dir_name = f"{date_str}_{safe_title}"
             project_dir = settings.output_dir / project_dir_name
             project_dir.mkdir(parents=True, exist_ok=True)
 
-            wav_dir = project_dir / "wav_files"
             transcripts_dir = project_dir / "transcripts"
             summaries_dir = project_dir / "summaries"
-            
-            wav_dir.mkdir(exist_ok=True)
+
             transcripts_dir.mkdir(exist_ok=True)
             summaries_dir.mkdir(exist_ok=True)
 
-            shutil.move(str(download_result.audio_path), str(wav_dir / download_result.audio_path.name))
+            # No audio exists on the captions path — nothing to archive.
+            if audio_path is not None:
+                wav_dir = project_dir / "wav_files"
+                wav_dir.mkdir(exist_ok=True)
+                shutil.move(str(audio_path), str(wav_dir / audio_path.name))
+
             (transcripts_dir / f"{safe_title}.md").write_text(transcript_result.markdown_content, encoding="utf-8")
             (summaries_dir / f"{safe_title}.summary.md").write_text(summary_result.summary_text, encoding="utf-8")
-            (project_dir / "original_url.txt").write_text(str(download_result.url), encoding="utf-8")
-            
-            logger.success(f"API: Successfully processed and archived {download_result.title}")
+            (project_dir / "original_url.txt").write_text(str(source.url), encoding="utf-8")
+
+            logger.success(f"API: Successfully processed and archived {source.title}")
 
     except Exception as e:
         logger.error(f"API: Background processing failed for {url}. Reason: {e}")
