@@ -175,3 +175,28 @@ def test_visuals_rescue_an_otherwise_empty_result():
 
 def test_real_summary_is_usable():
     assert has_usable_notes(f"## Summary\n- a real point{TRANSCRIPT_MARKER}raw") is True
+
+
+# --- Download output selection (intermittent-failure regression) ---
+
+def test_download_prefers_merged_output_over_fragments(tmp_path):
+    """yt-dlp leaves per-stream fragments beside the merged file and deletes
+    them after merging. Sorted-first picks the fragment ('f' < 'm'), which is
+    gone by the time ffmpeg opens it — an intermittent "No such file" that
+    retries cleanly and looks like flakiness."""
+    from unittest.mock import patch
+    from video2mdnotes.core.frames import download_video
+
+    (tmp_path / "source_video.f399.mp4").write_bytes(b"x" * 10)
+    (tmp_path / "source_video.mp4").write_bytes(b"x" * 500)
+
+    class _FakeYDL:
+        def __init__(self, *a, **k): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def download(self, urls): return 0
+
+    with patch("yt_dlp.YoutubeDL", _FakeYDL):
+        got = download_video("https://example/v", tmp_path)
+
+    assert got is not None and got.name == "source_video.mp4"

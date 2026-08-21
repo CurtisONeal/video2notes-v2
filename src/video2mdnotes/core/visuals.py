@@ -36,12 +36,20 @@ from video2mdnotes.core.ranking import select_for_escalation
 _WORD = re.compile(r"[^\W\d_]{2,}", re.UNICODE)
 
 VLM_PROMPT = (
-    "This is a single frame from an instructional video. Describe only what is "
-    "actually visible: the structure of any diagram, chart, table, or UI, and "
-    "what it conveys. Do not speculate about parts of the video you cannot see, "
-    "and do not invent labels or values that are not legible in the image. If "
-    "the frame carries no meaningful information, reply exactly: NO CONTENT."
+    "This is a single frame from an instructional video. In 1-3 plain sentences, "
+    "describe what is visible and what it conveys — the structure of any diagram, "
+    "chart, table, or UI. "
+    "Write flowing prose only. Do NOT use markdown headings, bold labels, or "
+    "bullet lists: this text is inserted into an existing notes document and any "
+    "heading you emit breaks its structure. "
+    "Do not speculate about parts of the video you cannot see, and do not invent "
+    "labels or values that are not legible in the image. If the frame carries no "
+    "meaningful information, reply exactly: NO CONTENT."
 )
+
+# Belt and braces: a model that emits a heading anyway must not be able to
+# corrupt the document's structure.
+_HEADING = re.compile(r"^#{1,6}\s+", re.MULTILINE)
 
 
 class FrameReading(BaseModel):
@@ -137,7 +145,11 @@ def describe_image(image_path: Path, model: Optional[str] = None) -> str:
         logger.warning(f"Vision model failed on {image_path.name}: {e}")
         return ""
 
-    return "" if text.upper().startswith("NO CONTENT") else text
+    if text.upper().startswith("NO CONTENT"):
+        return ""
+    # Demote any heading the model emitted despite the instruction — an H1
+    # inside a ### frame block silently breaks the notes' heading hierarchy.
+    return _HEADING.sub("", text).strip()
 
 
 def read_frames(
@@ -205,7 +217,29 @@ def read_frames(
     return kept
 
 
-def render_markdown(readings: List[FrameReading], frames_dirname: str = "frames") -> str:
+def narration_at(segments, timestamp: float, window: float) -> str:
+    """Transcript text spoken around a given moment.
+
+    This is what makes audio and visuals usable together. The summary appends
+    the transcript as raw text with no timestamps, so without this a reader has
+    no way to connect a frame at [3m40s] to the words that accompanied it —
+    exactly the correlation a "click here, then here" tutorial depends on.
+    """
+    if not segments:
+        return ""
+    parts = [
+        (seg.text or "").strip()
+        for seg in segments
+        if seg.start <= timestamp + window and seg.end >= timestamp - window
+    ]
+    return " ".join(p for p in parts if p).strip()
+
+
+def render_markdown(
+    readings: List[FrameReading],
+    frames_dirname: str = "frames",
+    segments=None,
+) -> str:
     """Render frame readings as a markdown section with embedded images.
 
     Image links are relative so the notes directory stays portable — moving or
@@ -229,6 +263,10 @@ def render_markdown(readings: List[FrameReading], frames_dirname: str = "frames"
             lines.append("```\n")
         if reading.description.strip():
             lines.append(f"**Description:** {reading.description.strip()}\n")
+        if segments:
+            said = narration_at(segments, reading.timestamp, settings.visual_narration_window)
+            if said:
+                lines.append(f"**Narration:** {said}\n")
         lines.append(f"_source: {reading.source}_\n")
     return "\n".join(lines)
 

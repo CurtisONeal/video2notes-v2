@@ -158,6 +158,9 @@ class Settings(BaseSettings):
     # not by chronological order — otherwise the budget is exhausted on the
     # intro and the conclusion is never seen.
     vlm_max_frames: int = 15
+    # Seconds either side of a frame whose narration is quoted beneath it, so a
+    # reader can connect what was on screen to what was being said.
+    visual_narration_window: float = 4.0
 
     # Ranking weights for choosing WHICH eligible frames to spend the budget on.
     # All three signals are free — computed from data already on hand.

@@ -1,4 +1,5 @@
 import typer
+import re
 import shutil
 import sys
 import time
@@ -61,6 +62,30 @@ def _mark_empty(project_dir: Path) -> Path:
     return marked
 
 
+def _transcript_segments(project_dir: Path):
+    """Recover segment timings from an archived transcript.
+
+    The visuals-only pass has no TranscriptResult in memory, but the archived
+    transcript markdown carries `- [H:MM:SS.mmm] text` lines — enough to restore
+    the timings the ranker and the narration quotes need.
+    """
+    from video2mdnotes.core.transcriber import Segment
+
+    files = list((project_dir / "transcripts").glob("*.md"))
+    if not files:
+        return []
+    pattern = re.compile(r"^- \[(\d+):(\d{2}):(\d{2})\.(\d+)\]\s*(.*)$")
+    segments = []
+    for line in files[0].read_text(encoding="utf-8").splitlines():
+        m = pattern.match(line)
+        if not m:
+            continue
+        h, mi, sec, ms, text = m.groups()
+        start = int(h) * 3600 + int(mi) * 60 + int(sec) + int(ms) / 1000
+        segments.append(Segment(start=start, end=start + 5.0, text=text))
+    return segments
+
+
 def _add_visuals(project_dir: Path, source, summary_path: Path) -> None:
     """Add a visual section to notes that already exist, without re-transcribing.
 
@@ -78,8 +103,9 @@ def _add_visuals(project_dir: Path, source, summary_path: Path) -> None:
         if not keyframes:
             logger.info(f"No keyframes extracted for {source.title}")
             return
-        readings = visuals.read_frames(keyframes)
-        visual_markdown = visuals.render_markdown(readings)
+        segments = _transcript_segments(project_dir)
+        readings = visuals.read_frames(keyframes, segments=segments)
+        visual_markdown = visuals.render_markdown(readings, segments=segments)
         if not visual_markdown:
             logger.info(f"Frames carried no readable content for {source.title}")
             return
@@ -357,7 +383,9 @@ def process(
                                 if transcript_result.segments else None
                             ),
                         )
-                        visual_markdown = visuals.render_markdown(readings)
+                        visual_markdown = visuals.render_markdown(
+                            readings, segments=transcript_result.segments
+                        )
                         video_file.unlink(missing_ok=True)
                         shutil.rmtree(project_dir / "_video", ignore_errors=True)
                 except Exception as e:  # noqa: BLE001 - enrichment is never fatal

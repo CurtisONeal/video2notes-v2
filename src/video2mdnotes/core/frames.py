@@ -41,6 +41,9 @@ class Keyframe(BaseModel):
 # output filenames are just a sequence.
 _PTS = re.compile(r"pts_time:([0-9.]+)")
 
+# yt-dlp per-stream fragment naming, e.g. source_video.f399.mp4
+FRAGMENT = re.compile(r"\.f\d+\.")
+
 
 def _ffmpeg() -> str:
     return shutil.which(settings.ffmpeg_path) or settings.ffmpeg_path
@@ -243,6 +246,19 @@ def download_video(url: str, dest_dir: Path) -> Optional[Path]:
         logger.warning(f"Could not download video for frame extraction: {e}")
         return None
 
-    for candidate in sorted(dest_dir.glob("source_video.*")):
-        return candidate
-    return None
+    # yt-dlp leaves per-stream fragments (source_video.f399.mp4) alongside the
+    # merged output and deletes them once merging finishes. Sorted-first picks
+    # the fragment ('f' < 'm'), which is then gone by the time ffmpeg opens it —
+    # an intermittent "No such file or directory" that retries cleanly, which is
+    # exactly the kind of failure that gets written off as flaky.
+    candidates = [
+        c for c in dest_dir.glob("source_video.*")
+        if c.exists() and c.suffix not in (".part", ".ytdl") and not FRAGMENT.search(c.name)
+    ]
+    if not candidates:
+        # Fall back to anything that survived, largest first — a fragment is
+        # better than nothing if merging did not produce a clean output.
+        candidates = [c for c in dest_dir.glob("source_video.*") if c.exists()]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda c: c.stat().st_size)
