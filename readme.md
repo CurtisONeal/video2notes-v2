@@ -30,6 +30,59 @@ This project uses modern Python packaging tools:
 - **hatchling**: The build backend used for packaging the application.
 - **pyproject.toml**: The single configuration file for defining the project and its dependencies.
 
+## How a run decides what to do
+
+Every branch below is a real decision point with a config flag behind it. The
+ordering is the whole design: **free signals gate expensive ones.**
+
+```
+URL
+ │
+ ├─ probe_source()                      metadata only, no download
+ │   ├─ yt-dlp handles it? ──── no ──▶ SCRAPE_PAGE_EMBEDS=true?
+ │   │                                  ├─ yes ─▶ fetch page, probe each embed
+ │   │                                  └─ no  ─▶ fail with yt-dlp's error
+ │   └─ playlist?  ──▶ GROUP_BY_PLAYLIST=true ─▶ notes go in <playlist>/ 
+ │
+ ├─ per video ─ already summarized?  ──▶ yes & not --force ─▶ SKIP (resume)
+ │
+ ├─ TRANSCRIPT ─────────────────────────────────────────────────────────────
+ │   CAPTIONS_FIRST=true?
+ │    ├─ manual track in CAPTIONS_LANG?      (auto-captions never used)
+ │    │    ├─ ≥ CAPTIONS_MIN_WORDS?  ──▶ USE CAPTIONS   (no download, no Whisper)
+ │    │    └─ below threshold        ──▶ fall through   (music/[♪♪♪] tracks)
+ │    └─ none ──▶ fetch_audio() ──▶ Whisper (local, free)
+ │                                    └─ 0 segments ─▶ placeholder, no LLM call
+ │
+ ├─ SUMMARY ────────────────────────────────────────────────────────────────
+ │   walk LLM_MODELS in order:
+ │    ├─ claude-cli/*     subscription, no key   (tools OFF, scratch cwd)
+ │    │     └─ exhausted? ─▶ ON_EXHAUSTION: wait | metered | local | stop | ask
+ │    │                       default `wait` — never spends unasked
+ │    ├─ openai|anthropic/*   metered, needs a real key (placeholders rejected)
+ │    └─ ollama|lm_studio/*   local, no key — requires ALLOW_LOCAL_MODELS
+ │
+ ├─ VISUALS (EXTRACT_FRAMES=true only) ─────────────────────────────────────
+ │   download low-res video
+ │    ├─ scene detect @ FRAME_SCENE_THRESHOLD
+ │    │    └─ < FRAME_MIN_BEFORE_INTERVAL frames? ─▶ interval sampling fallback
+ │    ├─ perceptual-hash de-duplicate
+ │    ├─ OCR every frame                       FREE, macOS Vision only
+ │    ├─ eligible = OCR words < VLM_ESCALATE_BELOW_WORDS
+ │    └─ rank eligible (dwell + uniqueness + audio cue)
+ │         └─ top VLM_MAX_FRAMES ─▶ vision model   ← the only per-frame cost
+ │
+ └─ ARCHIVE ────────────────────────────────────────────────────────────────
+     summary → visuals → transcript      (one insert_visual_section, both paths)
+      ├─ no usable notes? ─▶ rename dir to no_summary_*   (MARK_EMPTY_RESULTS)
+      └─ audio kept unless --keep-wav=false     (wav dwarfs the notes: 339MB vs 268KB)
+```
+
+**The load-bearing rule:** anything that costs money sits behind something that
+does not. Captions gate Whisper; OCR gates the vision model; ranking decides
+which frames are worth the vision model at all; and subscription capacity is
+never silently traded for metered billing.
+
 ## Project Setup
 
 ### Prerequisites
