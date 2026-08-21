@@ -47,17 +47,94 @@ def _resolve_exhaustion_policy() -> str:
     return settings.on_exhaustion
 
 
-def _existing_summary(safe_title: str) -> Path | None:
+NO_SUMMARY_PREFIX = "no_summary_"
+
+
+def _mark_empty(project_dir: Path) -> Path:
+    """Rename a project directory to flag that it produced no usable notes."""
+    if project_dir.name.startswith(NO_SUMMARY_PREFIX):
+        return project_dir
+    marked = project_dir.with_name(f"{NO_SUMMARY_PREFIX}{project_dir.name}")
+    if marked.exists():
+        shutil.rmtree(marked, ignore_errors=True)
+    project_dir.rename(marked)
+    return marked
+
+
+def _add_visuals(project_dir: Path, source, summary_path: Path) -> None:
+    """Add a visual section to notes that already exist, without re-transcribing.
+
+    Reads the transcript back off disk to recover the segment timings the
+    ranker uses for audio cues, so a separate pass ranks frames the same way
+    the inline path would.
+    """
+    from video2mdnotes.core import frames as frames_mod
+
+    video_file = frames_mod.download_video(source.url, project_dir / "_video")
+    if not video_file:
+        raise RuntimeError("could not download video for frame extraction")
+    try:
+        keyframes = frames_mod.extract_and_dedupe(video_file, project_dir / "frames")
+        if not keyframes:
+            logger.info(f"No keyframes extracted for {source.title}")
+            return
+        readings = visuals.read_frames(keyframes)
+        visual_markdown = visuals.render_markdown(readings)
+        if not visual_markdown:
+            logger.info(f"Frames carried no readable content for {source.title}")
+            return
+
+        summary_path.write_text(
+            visuals.insert_visual_section(
+                summary_path.read_text(encoding="utf-8"), visual_markdown
+            ),
+            encoding="utf-8",
+        )
+        logger.success(f"Added {len(readings)} visual(s) to {summary_path.name}")
+
+        # The notes may now be usable even though the audio produced nothing.
+        marked = project_dir.name.startswith(NO_SUMMARY_PREFIX)
+        if marked and visuals.has_usable_notes(summary_path.read_text(encoding="utf-8")):
+            unmarked = project_dir.with_name(project_dir.name[len(NO_SUMMARY_PREFIX):])
+            project_dir.rename(unmarked)
+            logger.success(f"Visuals rescued empty notes — renamed to {unmarked.name}")
+    finally:
+        video_file.unlink(missing_ok=True)
+        shutil.rmtree(project_dir / "_video", ignore_errors=True)
+
+
+def _project_root(source) -> Path:
+    """Output root for one source, grouped by playlist when asked.
+
+    Grouping is opt-in because turning it on moves where notes land, and a
+    library that silently reorganises itself between runs is worse than one
+    that scatters predictably.
+    """
+    from video2mdnotes.core.downloader import sanitize_filename
+
+    root = settings.output_dir
+    if settings.group_by_playlist and getattr(source, "playlist_title", None):
+        root = root / sanitize_filename(source.playlist_title)
+    return root
+
+
+def _existing_summary(safe_title: str, root: Path | None = None) -> Path | None:
     """Find an already-generated summary for this video, if any.
 
     Matched on title independent of run date, because the project directory is
     named `<date>_<title>` and a resume the next day must still recognise work
     finished today.
     """
-    for candidate in settings.output_dir.glob(f"*_{safe_title}"):
-        summary = candidate / "summaries" / f"{safe_title}.summary.md"
-        if summary.exists() and summary.stat().st_size > 0:
-            return summary
+    root = root or settings.output_dir
+    # Search the grouped directory and the output root, so notes made before
+    # --group-by-playlist existed are still found and not silently redone.
+    for base in {root, settings.output_dir}:
+        if not base.exists():
+            continue
+        for candidate in base.glob(f"*_{safe_title}"):
+            summary = candidate / "summaries" / f"{safe_title}.summary.md"
+            if summary.exists() and summary.stat().st_size > 0:
+                return summary
     return None
 
 
@@ -98,6 +175,14 @@ def process(
         False, "--force",
         help="Re-summarize videos that already have a summary (default: skip them)",
     ),
+    group_by_playlist: bool = typer.Option(
+        False, "--group-by-playlist",
+        help="Put all of a playlist's notes in one directory named after the playlist.",
+    ),
+    visuals_only: bool = typer.Option(
+        False, "--visuals-only",
+        help="Add visual content to notes that already exist, without re-transcribing.",
+    ),
     on_exhaustion: str = typer.Option(
         None, "--on-exhaustion",
         help="When the subscription runs out: wait | metered | local | stop | ask. "
@@ -109,6 +194,12 @@ def process(
     """
     if on_exhaustion:
         settings.on_exhaustion = on_exhaustion.strip().lower()
+    if group_by_playlist:
+        settings.group_by_playlist = True
+    if visuals_only:
+        # The whole point of this mode is to add visuals, so enabling it
+        # implicitly beats failing with "nothing to do".
+        settings.extract_frames = True
 
     logger.info(f"Starting processing for URL: {url}")
 
@@ -134,7 +225,24 @@ def process(
         # Resume: work already on disk is not redone. Re-running a playlist
         # after an interruption must not re-summarize what it already has —
         # that is the expensive half of the run.
-        already = _existing_summary(sanitize_filename(source.title))
+        project_root = _project_root(source)
+
+        # --visuals-only adds to notes that already exist; it never transcribes.
+        if visuals_only:
+            existing = _existing_summary(sanitize_filename(source.title), project_root)
+            if not existing:
+                logger.warning(f"[{position}] No existing notes to add visuals to: {source.title}")
+                failed.append((source.title, "no existing notes"))
+                continue
+            try:
+                _add_visuals(existing.parent.parent, source, existing)
+                done.append(source.title)
+            except Exception as e:  # noqa: BLE001
+                logger.error(f"[{position}] Visuals failed: {source.title} — {e}")
+                failed.append((source.title, str(e)))
+            continue
+
+        already = _existing_summary(sanitize_filename(source.title), project_root)
         if already and not force:
             logger.info(f"[{position}] Skipping (already summarized): {source.title}")
             skipped.append(source.title)
@@ -205,7 +313,7 @@ def process(
             date_str = dt.date.today().strftime('%Y%m%d')
             project_dir_name = f"{date_str}_{safe_title}"
             
-            project_dir = settings.output_dir / project_dir_name
+            project_dir = project_root / project_dir_name
             project_dir.mkdir(parents=True, exist_ok=True)
 
             transcripts_dir = project_dir / "transcripts"
@@ -256,20 +364,24 @@ def process(
                     logger.warning(f"Visual extraction failed: {e}")
 
             summary_path = summaries_dir / f"{safe_title}.summary.md"
-            summary_text = summary_result.summary_text
-            if visual_markdown:
-                # Before the appended raw transcript, so the notes read
-                # summary -> visuals -> transcript.
-                marker = "\n\n## Transcript\n"
-                if marker in summary_text:
-                    head, _, tail = summary_text.partition(marker)
-                    summary_text = f"{head}\n\n{visual_markdown}{marker}{tail}"
-                else:
-                    summary_text = f"{summary_text}\n\n{visual_markdown}"
+            summary_text = visuals.insert_visual_section(
+                summary_result.summary_text, visual_markdown
+            )
             summary_path.write_text(summary_text, encoding="utf-8")
 
             url_file = project_dir / "original_url.txt"
             url_file.write_text(download_result.url, encoding="utf-8")
+
+            # A run that produced no usable notes (silent/music-only source with
+            # nothing on screen either) is a legitimate outcome, but in a
+            # listing it looks identical to a real result. Mark it.
+            if settings.mark_empty_results and not visuals.has_usable_notes(summary_text):
+                project_dir = _mark_empty(project_dir)
+                summary_path = project_dir / "summaries" / summary_path.name
+                logger.warning(
+                    f"[{position}] No usable notes produced — marked "
+                    f"{project_dir.name}"
+                )
 
             console.print(Panel(
                 f"[bold]Processing Complete for {download_result.title}![/bold]\n\n"

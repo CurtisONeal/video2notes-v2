@@ -82,3 +82,37 @@ def test_probe_source_records_canonical_watch_url():
         sources = probe_source("https://www.youtube.com/watch?v=abc123")
 
     assert sources[0].url == "https://www.youtube.com/watch?v=abc123"
+
+
+def test_probe_source_captures_playlist_identity():
+    """Playlist title/id come from the container, not the entries — extract_flat
+    drops the per-entry playlist_* keys entirely."""
+    from unittest.mock import MagicMock, patch
+    from video2mdnotes.core.downloader import probe_source
+
+    info = {
+        "id": "PL123", "title": "Postman AI Agent Builder",
+        "entries": [{"title": "One", "webpage_url": "https://w/1"},
+                    {"title": "Two", "webpage_url": "https://w/2"}],
+    }
+    ydl = MagicMock()
+    ydl.__enter__.return_value.extract_info.return_value = info
+    with patch("video2mdnotes.core.downloader.yt_dlp.YoutubeDL", return_value=ydl):
+        sources = probe_source("https://playlist")
+
+    assert all(s.playlist_title == "Postman AI Agent Builder" for s in sources)
+    assert all(s.playlist_id == "PL123" for s in sources)
+
+
+def test_single_video_has_no_playlist_identity():
+    from unittest.mock import MagicMock, patch
+    from video2mdnotes.core.downloader import probe_source
+
+    ydl = MagicMock()
+    ydl.__enter__.return_value.extract_info.return_value = {
+        "title": "Solo", "webpage_url": "https://w/solo"
+    }
+    with patch("video2mdnotes.core.downloader.yt_dlp.YoutubeDL", return_value=ydl):
+        sources = probe_source("https://video")
+
+    assert sources[0].playlist_title is None

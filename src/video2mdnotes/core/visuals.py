@@ -231,3 +231,57 @@ def render_markdown(readings: List[FrameReading], frames_dirname: str = "frames"
             lines.append(f"**Description:** {reading.description.strip()}\n")
         lines.append(f"_source: {reading.source}_\n")
     return "\n".join(lines)
+
+
+# The summarizer appends the raw transcript under this heading. Visual content
+# belongs before it, so the notes read summary -> visuals -> transcript.
+TRANSCRIPT_MARKER = "\n\n## Transcript\n"
+VISUAL_HEADING = "## Visual Content"
+
+
+def insert_visual_section(summary_text: str, visual_markdown: str) -> str:
+    """Splice a visual section into summary text at the right place.
+
+    Shared by the inline pipeline and the visuals-only pass so both produce
+    byte-identical placement — the insertion point is the one thing a separate
+    pass could plausibly get wrong, and having two implementations of it is how
+    they would drift.
+
+    Replaces an existing visual section rather than appending a second one, so
+    re-running the pass is idempotent.
+    """
+    if not visual_markdown.strip():
+        return summary_text
+
+    # Drop any previous visual section, wherever it sits.
+    if VISUAL_HEADING in summary_text:
+        head, _, rest = summary_text.partition(VISUAL_HEADING)
+        # The old section runs until the transcript marker, or to the end.
+        if TRANSCRIPT_MARKER in rest:
+            _, _, tail = rest.partition(TRANSCRIPT_MARKER)
+            summary_text = f"{head.rstrip()}{TRANSCRIPT_MARKER}{tail}"
+        else:
+            summary_text = head.rstrip()
+
+    if TRANSCRIPT_MARKER in summary_text:
+        head, _, tail = summary_text.partition(TRANSCRIPT_MARKER)
+        return f"{head.rstrip()}\n\n{visual_markdown}{TRANSCRIPT_MARKER}{tail}"
+    return f"{summary_text.rstrip()}\n\n{visual_markdown}"
+
+
+def has_usable_notes(summary_text: str) -> bool:
+    """False when a run produced nothing worth reading.
+
+    The empty-transcript placeholder is a legitimate outcome (a music-only
+    video genuinely has no speech) but it is not notes, and in a directory
+    listing it is indistinguishable from a real result.
+    """
+    from video2mdnotes.core.summarizer import EMPTY_TRANSCRIPT_PLACEHOLDER
+
+    body = summary_text
+    if TRANSCRIPT_MARKER in body:
+        body, _, _ = body.partition(TRANSCRIPT_MARKER)
+    body = body.replace(EMPTY_TRANSCRIPT_PLACEHOLDER, "").strip()
+    # A surviving visual section means the frames carried the content even
+    # though the audio did not.
+    return bool(body)

@@ -24,6 +24,10 @@ class SourceInfo(BaseModel):
     # carried here — see core/captions.py for why they are not trusted.
     subtitles: Dict[str, List[Dict[str, Any]]] = {}
     has_automatic_captions: bool = False
+    # Set when the source URL was a playlist, so a run can group its notes into
+    # one directory instead of scattering them by date across the output root.
+    playlist_title: Optional[str] = None
+    playlist_id: Optional[str] = None
 
 
 class DownloadResult(BaseModel):
@@ -103,9 +107,15 @@ def probe_source(url: str, allow_embed_scrape: bool = True) -> List[SourceInfo]:
     # Determine if the result is a playlist or a single video
     if 'entries' in info:
         entries = info['entries']
+        # yt-dlp puts playlist identity on the container, not the entries (and
+        # extract_flat drops the per-entry playlist_* keys entirely), so read it
+        # here and hand it to every source.
+        playlist_title = info.get('title')
+        playlist_id = info.get('id')
     else:
         # It's a single video, wrap it in a list to use the same loop
         entries = [info]
+        playlist_title = playlist_id = None
 
     sources: List[SourceInfo] = []
     for index, entry in enumerate(entries):
@@ -128,6 +138,8 @@ def probe_source(url: str, allow_embed_scrape: bool = True) -> List[SourceInfo]:
             description=entry.get('description') or "",
             subtitles=entry.get('subtitles') or {},
             has_automatic_captions=bool(entry.get('automatic_captions')),
+            playlist_title=playlist_title,
+            playlist_id=playlist_id,
         ))
     return sources
 

@@ -98,6 +98,16 @@ class Settings(BaseSettings):
     # yields nothing.
     scrape_page_embeds: bool = True
 
+    # When the source URL is a playlist, put every video's notes inside one
+    # directory named after the playlist, instead of scattering them by date
+    # across the output root. Off by default so existing layouts don't move.
+    group_by_playlist: bool = False
+
+    # Prefix directories whose run produced no usable notes with "no_summary_".
+    # A silent/music-only video yields a placeholder summary that looks like a
+    # real result in a listing; the prefix makes the gap visible at a glance.
+    mark_empty_results: bool = True
+
     # Visual Content Extraction (off by default — the VLM tier costs money)
     #
     # Some instructional video carries its substance on screen, not in the
@@ -111,6 +121,13 @@ class Settings(BaseSettings):
     # err low and let the perceptual-hash dedupe absorb the over-firing.
     frame_scene_threshold: float = 0.15
     frame_max: int = 40
+    # When scene detection yields fewer than this many frames, fall back to
+    # interval sampling. Continuously-animated video has no hard cuts, so scene
+    # detection can miss content that is plainly on screen.
+    frame_min_before_interval: int = 4
+    # Roughly how many frames interval sampling should aim for, so short clips
+    # and long lectures both get a sensible cadence.
+    frame_interval_target: int = 10
     # Perceptual-hash distance below which two frames count as the same slide.
     # Screencasts over-fire scene detection on cursor movement and typing.
     frame_dedupe_threshold: int = 6

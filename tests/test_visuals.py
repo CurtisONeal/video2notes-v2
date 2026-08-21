@@ -121,3 +121,57 @@ def test_real_key_passes_through():
 
 def test_keyframe_label_formats_position():
     assert Keyframe(path=Path("x.png"), timestamp=187.0).label == "3m07s"
+
+
+# --- Visual section placement (shared by inline and visuals-only paths) ---
+
+from video2mdnotes.core.visuals import (  # noqa: E402
+    TRANSCRIPT_MARKER,
+    has_usable_notes,
+    insert_visual_section,
+)
+from video2mdnotes.core.summarizer import EMPTY_TRANSCRIPT_PLACEHOLDER  # noqa: E402
+
+VISUALS = "## Visual Content\n\n![f](frames/a.png)\n"
+
+
+def test_visuals_go_before_the_appended_transcript():
+    out = insert_visual_section(f"Notes.{TRANSCRIPT_MARKER}raw", VISUALS)
+    assert out.index("## Visual Content") < out.index("## Transcript")
+
+
+def test_visuals_append_when_there_is_no_transcript():
+    out = insert_visual_section("Notes.", VISUALS)
+    assert out.endswith(VISUALS.rstrip()) or "## Visual Content" in out
+
+
+def test_reinserting_replaces_rather_than_stacks():
+    """A visuals-only pass must be re-runnable without duplicating sections."""
+    once = insert_visual_section(f"Notes.{TRANSCRIPT_MARKER}raw", VISUALS)
+    twice = insert_visual_section(once, "## Visual Content\n\n![g](frames/b.png)\n")
+    assert twice.count("## Visual Content") == 1
+    assert "b.png" in twice and "a.png" not in twice
+    assert twice.index("## Visual Content") < twice.index("## Transcript")
+
+
+def test_empty_visuals_leave_the_summary_untouched():
+    base = f"Notes.{TRANSCRIPT_MARKER}raw"
+    assert insert_visual_section(base, "") == base
+
+
+# --- Empty-result detection (drives the no_summary_ prefix) ---
+
+def test_placeholder_only_is_not_usable_notes():
+    assert has_usable_notes(f"{EMPTY_TRANSCRIPT_PLACEHOLDER}{TRANSCRIPT_MARKER}") is False
+
+
+def test_visuals_rescue_an_otherwise_empty_result():
+    """The measured case: a silent product video whose content is all on screen."""
+    text = insert_visual_section(
+        f"{EMPTY_TRANSCRIPT_PLACEHOLDER}{TRANSCRIPT_MARKER}", VISUALS
+    )
+    assert has_usable_notes(text) is True
+
+
+def test_real_summary_is_usable():
+    assert has_usable_notes(f"## Summary\n- a real point{TRANSCRIPT_MARKER}raw") is True

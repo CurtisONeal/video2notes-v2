@@ -136,9 +136,75 @@ def deduplicate(frames: List[Keyframe], hamming_threshold: Optional[int] = None)
     return kept
 
 
+def video_duration(video_path: Path) -> Optional[float]:
+    """Duration in seconds, parsed from ffmpeg's own report."""
+    proc = subprocess.run(
+        [_ffmpeg(), "-i", str(video_path)],
+        capture_output=True, text=True, timeout=60,
+    )
+    match = re.search(r"Duration:\s*(\d+):(\d+):(\d+\.?\d*)", proc.stderr or "")
+    if not match:
+        return None
+    h, m, sec = match.groups()
+    return int(h) * 3600 + int(m) * 60 + float(sec)
+
+
+def extract_interval(
+    video_path: Path, output_dir: Path, every_seconds: float
+) -> List[Keyframe]:
+    """Sample one frame every N seconds, ignoring scene changes."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for stale in output_dir.glob("frame_*.png"):
+        stale.unlink()
+
+    subprocess.run(
+        [
+            _ffmpeg(), "-i", str(video_path),
+            "-vf", f"fps=1/{every_seconds}",
+            "-vsync", "vfr",
+            "-frames:v", str(settings.frame_max),
+            str(output_dir / "frame_%04d.png"), "-y",
+        ],
+        capture_output=True, text=True, timeout=settings.frame_extract_timeout,
+    )
+    return [
+        Keyframe(path=path, timestamp=i * every_seconds)
+        for i, path in enumerate(sorted(output_dir.glob("frame_*.png")))
+    ]
+
+
 def extract_and_dedupe(video_path: Path, output_dir: Path) -> List[Keyframe]:
-    """Scene-detect then de-duplicate, the normal entry point."""
-    return deduplicate(extract_keyframes(video_path, output_dir))
+    """Scene-detect, falling back to interval sampling when that under-samples.
+
+    Scene detection assumes cuts. Continuously-animated video has none, so it
+    can return almost nothing while the screen is carrying the entire message.
+    Measured on a 25-second product announcement that the audio pipeline
+    reported as "No speech detected": scene detection found 1 frame, while
+    sampling every 3 seconds found 8 — and those 8 held the whole content
+    ("Monday - Send the weekly team standup summary", "Giving you back some
+    time"), half of it readable by free OCR.
+
+    Falling back on a frame *count* rather than trusting the threshold means the
+    failure is self-correcting instead of silent.
+    """
+    frames = deduplicate(extract_keyframes(video_path, output_dir))
+    if len(frames) >= settings.frame_min_before_interval:
+        return frames
+
+    duration = video_duration(video_path)
+    if not duration:
+        return frames
+
+    # Aim for a target count rather than a fixed cadence, so a 25-second clip
+    # and a 40-minute lecture both yield a sensible number of frames.
+    every = max(1.0, duration / settings.frame_interval_target)
+    logger.info(
+        f"Scene detection found only {len(frames)} frame(s) in "
+        f"{video_path.name} — falling back to interval sampling every "
+        f"{every:.0f}s."
+    )
+    interval = deduplicate(extract_interval(video_path, output_dir, every))
+    return interval if len(interval) > len(frames) else frames
 
 
 def probe_has_video_stream(video_path: Path) -> bool:
