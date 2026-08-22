@@ -17,10 +17,12 @@ from video2mdnotes.core.visuals import (
 @pytest.fixture
 def visual_settings():
     saved = (settings.vlm_enabled, settings.vlm_model,
-             settings.vlm_escalate_below_words, settings.vlm_max_frames)
+             settings.vlm_escalate_below_words, settings.vlm_max_frames,
+             settings.profile_probe)
     yield settings
     (settings.vlm_enabled, settings.vlm_model,
-     settings.vlm_escalate_below_words, settings.vlm_max_frames) = saved
+     settings.vlm_escalate_below_words, settings.vlm_max_frames,
+     settings.profile_probe) = saved
 
 
 # --- Escalation policy: this is what controls the bill ---
@@ -44,9 +46,15 @@ def test_picture_carrying_frame_escalates(ocr, visual_settings):
 
 
 def test_escalation_respects_frame_budget(tmp_path, visual_settings):
-    """One dense deck must not run away with the bill."""
+    """One dense deck must not run away with the bill.
+
+    The probe is disabled here to isolate the budget mechanism: with empty OCR
+    on every frame the probe correctly infers 'talking_head' and makes nothing
+    eligible, which is the right behaviour but tests a different thing.
+    """
     settings.vlm_enabled = True
     settings.vlm_max_frames = 2
+    settings.profile_probe = False
     frames = []
     for i in range(5):
         p = tmp_path / f"frame_{i}.png"

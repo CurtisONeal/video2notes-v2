@@ -108,6 +108,19 @@ class Settings(BaseSettings):
     # real result in a listing; the prefix makes the gap visible at a glance.
     mark_empty_results: bool = True
 
+    # Content-shape profiles for visual extraction. See core/profiles.py.
+    # Precedence: --profile > PROFILE_SOURCE_MAP > probe > these globals.
+    profile_source_map: str = (
+        "3blue1brown=animated,postman=screencast,karpathy=lecture,"
+        "freecodecamp=screencast,khan=lecture"
+    )
+    # Probe: classify by OCR yield on already-extracted frames. Free, and only
+    # ever changes what gets PAID for — never re-extracts to act on a guess.
+    profile_probe: bool = True
+    profile_probe_min_samples: int = 3
+    profile_probe_dense_words: int = 60   # >= this median -> screencast/UI
+    profile_probe_sparse_words: int = 20  # >= this median -> lecture
+
     # Visual Content Extraction (off by default — the VLM tier costs money)
     #
     # Some instructional video carries its substance on screen, not in the

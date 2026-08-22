@@ -16,6 +16,7 @@ from video2mdnotes.core.summarizer import generate_summary, SubscriptionExhauste
 from video2mdnotes.core.captions import transcript_from_captions
 from video2mdnotes.core import frames as frames_mod
 from video2mdnotes.core import visuals
+from video2mdnotes.core import profiles as profiles_mod
 
 app = typer.Typer(help="Video to Markdown Notes Pipeline")
 console = Console()
@@ -209,6 +210,11 @@ def process(
         False, "--visuals-only",
         help="Add visual content to notes that already exist, without re-transcribing.",
     ),
+    profile: str = typer.Option(
+        None, "--profile",
+        help="Content shape: animated | lecture | screencast | slides | talking_head. "
+             "Overrides the source map and the probe.",
+    ),
     on_exhaustion: str = typer.Option(
         None, "--on-exhaustion",
         help="When the subscription runs out: wait | metered | local | stop | ask. "
@@ -240,6 +246,16 @@ def process(
         logger.error(f"Processing failed: {e}")
         raise typer.Exit(code=1)
 
+    # A profile mutates settings for one video; snapshot the configured globals
+    # so a screencast profile cannot silently leak into the next video's run.
+    _profile_defaults = {
+        k: getattr(settings, k) for k in (
+            "frame_scene_threshold", "frame_dedupe_threshold", "frame_max",
+            "vlm_escalate_below_words", "vlm_max_frames", "vlm_model",
+            "extract_frames",
+        )
+    }
+
     done: list[str] = []
     skipped: list[str] = []
     failed: list[tuple[str, str]] = []
@@ -251,6 +267,17 @@ def process(
         # Resume: work already on disk is not redone. Re-running a playlist
         # after an interruption must not re-summarize what it already has —
         # that is the expensive half of the run.
+        for _k, _v in _profile_defaults.items():
+            setattr(settings, _k, _v)
+        try:
+            chosen = profiles_mod.resolve(source, profile)
+        except ValueError as e:
+            logger.error(str(e))
+            raise typer.Exit(code=2)
+        settings.__dict__['_profile_locked'] = bool(chosen)
+        if chosen:
+            profiles_mod.apply(chosen)
+
         project_root = _project_root(source)
 
         # --visuals-only adds to notes that already exist; it never transcribes.

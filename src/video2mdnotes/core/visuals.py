@@ -178,6 +178,20 @@ def read_frames(
         settings.vlm_enabled and needs_vision_model(text) for text in ocr_texts
     ]
 
+    # Probe: the OCR above is already paid for (it is free), so use it to infer
+    # the content shape before deciding what to spend. Only applied when no
+    # explicit profile or source-map hit already settled it.
+    if settings.profile_probe and not settings.__dict__.get("_profile_locked"):
+        from video2mdnotes.core import profiles as _profiles
+        guess = _profiles.classify_by_ocr(ocr_texts)
+        if guess:
+            picked = _profiles.PROFILES[guess]
+            logger.info(f"Profile '{guess}' (probe, from OCR yield): {picked.why}")
+            _profiles.apply_paid_only(picked)
+            eligible = [
+                settings.vlm_enabled and needs_vision_model(t) for t in ocr_texts
+            ]
+
     # Pass 2: rank the eligible frames and spend the budget on the best of
     # them, rather than on whichever happened to come first.
     chosen = select_for_escalation(
