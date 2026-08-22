@@ -4,6 +4,50 @@ The point of this project is to have a robust Python application that, when prov
 
 This project has been refactored from a collection of scripts into a modern, containerized Python application.
 
+## Platform support — read before installing
+
+| Feature | macOS | Linux / Windows |
+|---|---|---|
+| Download, transcribe, summarize | ✅ | ✅ |
+| Captions-first sourcing | ✅ | ✅ |
+| Keyframe extraction (ffmpeg) | ✅ | ✅ |
+| **Local OCR of those frames** | ✅ free | ❌ **not implemented** |
+
+**The core pipeline is cross-platform. Visual content extraction is not.**
+
+Local OCR uses the **macOS Vision framework** — free, offline, fast, and good on
+code and UI. There is no equivalent wired up for other platforms, and this is
+not a cosmetic gap: OCR is what makes visual extraction nearly free, because it
+handles most frames so the paid vision model only sees the ones it cannot. On
+Linux or Windows **every keyframe escalates to a metered vision-model call**,
+inverting the feature's economics. The pipeline warns loudly when it detects
+this, but it cannot fix it.
+
+Non-macOS users have three options, in order of preference:
+
+1. **Leave `EXTRACT_FRAMES=false`** (the default). Everything else works
+   normally; you simply get no visual content.
+2. **Set `VLM_ENABLED=false`.** Frames are extracted and embedded in the notes
+   as images, with no OCR text and no spend — useful if you just want the
+   screenshots.
+3. **Accept the cost.** Set `EXTRACT_FRAMES=true` and budget with
+   `VLM_MAX_FRAMES`. Expect roughly 3-15× the macOS cost depending on content.
+
+### Adding an OCR backend — no fork required
+
+`OCR_BACKEND` already exists as the switch (`auto` | `none`); it simply has no
+non-macOS implementation behind it yet. Adding one means a new branch in
+`ocr_available()` / `ocr_image()` in `core/visuals.py` returning plain text —
+Tesseract (weak on code and UI) or PaddleOCR (better, heavier install) are the
+obvious candidates.
+
+**Please add a backend rather than forking.** This codebase already carries the
+cost of one hand-maintained fork (`base_human_learn_sys`), where every fix has
+had to be applied twice and one was missed for six weeks. A second divergence
+for a platform difference that a single function can absorb would repeat that
+mistake.
+
+
 ## Project Structure
 The project now follows a standard Python package structure:
 ```
