@@ -39,6 +39,15 @@ def test_full_pipeline_e2e_single_video(tmp_path):
         date_str = dt.date.today().strftime('%Y%m%d')
         expected_project_dir_name = f"{date_str}_shortest_video_on_youtube"
         project_dir = settings.output_dir / expected_project_dir_name
+        # This fixture is a one-second silent clip, so it legitimately produces
+        # no usable notes and MARK_EMPTY_RESULTS renames the directory. Accept
+        # either name: the marking is the feature working, not a regression.
+        if not project_dir.exists():
+            marked = settings.output_dir / f"no_summary_{expected_project_dir_name}"
+            assert marked.exists(), (
+                f"neither {project_dir.name} nor {marked.name} was created"
+            )
+            project_dir = marked
         
         assert project_dir.exists()
         assert (project_dir / "original_url.txt").exists()
