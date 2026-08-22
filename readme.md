@@ -25,6 +25,12 @@ video2mdnotes/
 ```
 
 ### Package Management
+
+> ⚠️ **Use `uv sync --extra ocr --extra dev`, not a bare `uv sync`.**
+> OCR and dev dependencies are optional extras, so a bare sync silently removes
+> `ruff`, `pytest`, `ocrmac`, `imagehash` and `Pillow` — leaving a checkout that
+> looks fine but has no lint, no tests, and no visual extraction.
+
 This project uses modern Python packaging tools:
 - **uv**: A fast, reliable package installer and virtual environment manager.
 - **hatchling**: The build backend used for packaging the application.
