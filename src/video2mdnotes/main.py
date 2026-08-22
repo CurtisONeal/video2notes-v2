@@ -346,6 +346,22 @@ def process(
                 f"{len(transcript_result.segments)} segments"
             )
 
+            # 2b. Archive the transcript NOW, before anything can fail.
+            # Whisper is the expensive step; a summarizer failure (exhaustion,
+            # provider error) used to discard it entirely and force a full
+            # re-transcription on retry. Writing here also makes the transcript
+            # a durable artifact that can be re-summarized with a different
+            # prompt without touching the audio again.
+            safe_title = sanitize_filename(source.title)
+            date_str = dt.date.today().strftime('%Y%m%d')
+            project_dir = project_root / f"{date_str}_{safe_title}"
+            (project_dir / "transcripts").mkdir(parents=True, exist_ok=True)
+            transcript_path = project_dir / "transcripts" / f"{safe_title}.md"
+            transcript_path.write_text(
+                transcript_result.markdown_content, encoding="utf-8"
+            )
+            (project_dir / "original_url.txt").write_text(source.url, encoding="utf-8")
+
             # 3. Summarize — retries across a limit reset when policy is "wait".
             logger.info("Step 3: Generating Summary...")
             while True:
@@ -386,9 +402,6 @@ def process(
                 else:
                     download_result.audio_path.unlink()
 
-            transcript_path = transcripts_dir / f"{safe_title}.md"
-            transcript_path.write_text(transcript_result.markdown_content, encoding="utf-8")
-
             # 3b. Visual content — opt-in; the vision tier is metered spend.
             visual_markdown = ""
             if settings.extract_frames:
@@ -423,9 +436,6 @@ def process(
                 summary_result.summary_text, visual_markdown
             )
             summary_path.write_text(summary_text, encoding="utf-8")
-
-            url_file = project_dir / "original_url.txt"
-            url_file.write_text(download_result.url, encoding="utf-8")
 
             # A run that produced no usable notes (silent/music-only source with
             # nothing on screen either) is a legitimate outcome, but in a

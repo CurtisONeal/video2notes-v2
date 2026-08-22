@@ -208,3 +208,41 @@ def test_download_prefers_merged_output_over_fragments(tmp_path):
         got = download_video("https://example/v", tmp_path)
 
     assert got is not None and got.name == "source_video.mp4"
+
+
+# --- Transcript durability (precondition for re-summarizing) ---
+
+def test_transcript_survives_a_summarizer_failure(tmp_path, monkeypatch):
+    """Whisper is the expensive step. A summarizer failure — exhaustion, a
+    provider error — used to discard the transcript with it, forcing a full
+    re-transcription on retry. It is also the artifact a different prompt would
+    be re-run against, so it must outlive the summary."""
+    from unittest.mock import patch
+    from typer.testing import CliRunner
+    from video2mdnotes.main import app
+    from video2mdnotes.core.transcriber import TranscriptResult, Segment
+    from video2mdnotes.core.downloader import SourceInfo
+    import datetime as dt
+
+    settings.output_dir = tmp_path
+    src = SourceInfo(title="Doomed Video", url="https://example/v")
+    tr = TranscriptResult(
+        source_file=tmp_path / "a.wav", language="en",
+        segments=[Segment(start=0, end=2, text="real words here")],
+        full_text="real words here", markdown_content="# T\n\n- [0:00:00.000] real words here",
+        model_name="medium", generated_at=dt.datetime.now(),
+    )
+
+    with patch("video2mdnotes.main.probe_source", return_value=[src]), \
+         patch("video2mdnotes.main.transcript_from_captions", return_value=None), \
+         patch("video2mdnotes.main.fetch_audio", return_value=tmp_path / "a.wav"), \
+         patch("video2mdnotes.main.transcribe_audio", return_value=tr), \
+         patch("video2mdnotes.main.generate_summary",
+               side_effect=RuntimeError("provider exploded")):
+        CliRunner().invoke(app, ["https://example/v"])
+
+    written = list(tmp_path.glob("*/transcripts/*.md"))
+    assert written, "transcript was lost when summarization failed"
+    assert "real words here" in written[0].read_text()
+    # And the run is still correctly not treated as complete.
+    assert not list(tmp_path.glob("*/summaries/*.md"))
