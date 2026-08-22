@@ -89,6 +89,71 @@ does not. Captions gate Whisper; OCR gates the vision model; ranking decides
 which frames are worth the vision model at all; and subscription capacity is
 never silently traded for metered billing.
 
+## Dependency maintenance (read this before debugging a failing run)
+
+This pipeline depends on a moving target. YouTube changes; `yt-dlp` chases it;
+a stale pin means **every download fails with HTTP 403** — and it presents as a
+site problem or an IP block, not as a local one. That misdirection is what makes
+it expensive: the instinct is to investigate the content, which never helps.
+
+**Three dependency incidents in six days** (2026-08-16 → 2026-08-22): yt-dlp
+eight months stale, yt-dlp six weeks stale, and a yanked numpy under the
+transcription engine. Treat this as routine maintenance, not bad luck.
+
+### First diagnostic: is it us or them?
+
+Before investigating anything about the video, **retry a source that worked
+before**. This is the whole trick.
+
+```bash
+# A video known to have downloaded successfully in the past
+.venv/bin/python -m video2mdnotes.main "<previously-working-url>"
+```
+
+- **It fails too** → the cause is upstream. Stop looking at the content. Update.
+- **It still works** → the problem really is that video (private, geo-blocked,
+  region-locked). Investigate normally.
+
+### The update runbook
+
+Run these in order. Steps 2 and 4 are the ones people skip, and skipping either
+means the fix does not survive.
+
+```bash
+# 1. Update the dependency IN THE LOCKFILE, not just the venv.
+uv lock --upgrade-package yt-dlp          # or: --upgrade-package numpy
+
+# 2. Sync WITH THE EXTRAS. A bare `uv sync` silently removes ruff, pytest,
+#    ocrmac, imagehash and Pillow — leaving a checkout that looks fine but has
+#    no lint, no tests, and no visual extraction.
+uv sync --extra ocr --extra dev
+
+# 3. Fast check.
+.venv/bin/python -m pytest tests/ -q -m "not integration"
+
+# 4. Slow check — the one that actually exercises downloads and Whisper.
+#    ~5 minutes. Unit tests cannot catch a dependency break; they mock it.
+.venv/bin/python -m pytest tests/ -q -m integration
+
+# 5. Commit the lockfile. An un-committed lock change is undone by the next sync.
+git add uv.lock && git commit -m "Update <pkg>: <symptom it fixed>"
+```
+
+### Why each step exists (all three were learned the hard way)
+
+| Trap | What happens |
+|---|---|
+| Updating the venv only (`uv pip install -U`) | The next `uv sync` silently reinstalls the broken version. The lockfile pin is what made it stale in the first place. |
+| Bare `uv sync` | Removes the optional `ocr` and `dev` extras. Lint, tests, and visual extraction vanish without an error. |
+| Trusting unit tests | They mock the network. All 136 passed while every real download was 403ing. |
+| Reading one line of `uv.lock` | Versions are listed **per Python version**. `numpy` had both `2.2.6` (py<3.11) and the yanked `2.4.0` (py≥3.11); reading the first match reports the wrong answer. |
+
+### Cadence
+
+`yt-dlp` broke twice in four days at six weeks and eight months stale. There is
+no safe interval — check it whenever downloads fail, and bump it opportunistically
+whenever you are already touching the lockfile.
+
 ## Project Setup
 
 ### Prerequisites

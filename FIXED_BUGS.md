@@ -13,6 +13,26 @@ Newest first. Format: symptom → cause → fix → how we know.
 
 ---
 
+### A bare `uv sync` silently strips lint, tests and visual extraction
+- **Symptom:** `ruff`, `pytest`, `ocrmac`, `imagehash` and `Pillow` disappear. The
+  checkout still imports and still runs, so nothing announces the loss.
+- **Cause:** OCR and dev dependencies live in optional extras; a bare `uv sync`
+  installs neither and *removes* anything not in the base lock.
+- **Fix:** always `uv sync --extra ocr --extra dev`. Documented in readme.md.
+- **Test:** none — environment state, not code. Caught by importing after a sync.
+
+### Yanked numpy 2.4.0 under the transcription engine
+- **Symptom:** none observed. Surfaced as a `uv` warning during an unrelated lock.
+- **Cause:** numpy 2.4.0 was yanked upstream for a backward-compatibility bug and
+  sat beneath `ctranslate2` (Whisper inference), `onnxruntime` (VAD) and
+  `ImageHash`. A numeric-library compat bug there surfaces as wrong numbers
+  rather than crashes, which is the bad kind.
+- **Fix:** `uv lock --upgrade-package numpy` → 2.4.6 (a newer non-yanked release,
+  not a rollback). Verified with the integration suite, 5/5.
+- **Trap:** `uv.lock` lists versions **per Python version**. 2.2.6 (py<3.11) and
+  2.4.0 (py≥3.11) both appear; reading the first match reports the wrong answer.
+- **Test:** integration suite exercises the real Whisper path.
+
 ### yt-dlp staleness causes universal HTTP 403 (twice in four days)
 - **Symptom:** every download fails with `HTTP Error 403: Forbidden`. Looks like a site
   problem or an IP block.
